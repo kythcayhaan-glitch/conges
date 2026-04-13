@@ -41,6 +41,12 @@
                     <span>{{ user.prenom }}</span>
                 </li>
                 {% endif %}
+                {% if user.serviceNumber %}
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">N° de service</span>
+                    <span class="badge bg-secondary font-monospace fs-6">{{ user.serviceNumber }}</span>
+                </li>
+                {% endif %}
                 <li class="list-group-item d-flex justify-content-between">
                     <span class="text-muted">Identifiant</span>
                     <span>{{ user.username }}</span>
@@ -67,39 +73,38 @@
         {% if is_granted('ROLE_RH') %}
         <div class="card shadow-sm mt-3">
             <div class="card-header fw-semibold"><i class="bi bi-pencil me-1"></i>Modifier les soldes</div>
-            <div class="card-body d-flex flex-column gap-2">
+            <div class="card-body">
                 <form method="post" action="{{ path('app_agents_balance', {id: user.id}) }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('balance_' ~ user.id) }}">
-                    <input type="hidden" name="balanceType" value="CONGE">
-                    <label class="form-label small fw-semibold mb-1">Congés</label>
-                    <div class="input-group">
-                        <input type="number" name="leaveBalanceHours" class="form-control"
-                               value="{{ user.leaveBalance.value }}" min="0" step="0.5" required>
-                        <span class="input-group-text">h</span>
-                        <button class="btn btn-outline-primary" type="submit">Mettre à jour</button>
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-4">
+                            <label class="form-label small fw-semibold mb-1">Congés</label>
+                            <div class="input-group">
+                                <input type="number" name="congeBalance" class="form-control"
+                                       value="{{ user.leaveBalance.value }}" min="0" step="0.25" required>
+                                <span class="input-group-text">h</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label small fw-semibold mb-1">RTT</label>
+                            <div class="input-group">
+                                <input type="number" name="rttBalance" class="form-control"
+                                       value="{{ user.rttBalance.value }}" min="0" step="0.25" required>
+                                <span class="input-group-text">j</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="form-label small fw-semibold mb-1">Heures sup.</label>
+                            <div class="input-group">
+                                <input type="number" name="heureSupBalance" class="form-control"
+                                       value="{{ user.heureSupBalance.value }}" min="0" step="0.25" required>
+                                <span class="input-group-text">h</span>
+                            </div>
+                        </div>
                     </div>
-                </form>
-                <form method="post" action="{{ path('app_agents_balance', {id: user.id}) }}">
-                    <input type="hidden" name="_token" value="{{ csrf_token('balance_' ~ user.id) }}">
-                    <input type="hidden" name="balanceType" value="RTT">
-                    <label class="form-label small fw-semibold mb-1">RTT</label>
-                    <div class="input-group">
-                        <input type="number" name="leaveBalanceHours" class="form-control"
-                               value="{{ user.rttBalance.value }}" min="0" step="0.5" required>
-                        <span class="input-group-text">h</span>
-                        <button class="btn btn-outline-info" type="submit">Mettre à jour</button>
-                    </div>
-                </form>
-                <form method="post" action="{{ path('app_agents_balance', {id: user.id}) }}">
-                    <input type="hidden" name="_token" value="{{ csrf_token('balance_' ~ user.id) }}">
-                    <input type="hidden" name="balanceType" value="HEURE_SUP">
-                    <label class="form-label small fw-semibold mb-1">Heures sup.</label>
-                    <div class="input-group">
-                        <input type="number" name="leaveBalanceHours" class="form-control"
-                               value="{{ user.heureSupBalance.value }}" min="0" step="0.5" required>
-                        <span class="input-group-text">h</span>
-                        <button class="btn btn-outline-warning" type="submit">Mettre à jour</button>
-                    </div>
+                    <button class="btn btn-primary w-100" type="submit">
+                        <i class="bi bi-check-lg me-1"></i>Mettre à jour les soldes
+                    </button>
                 </form>
             </div>
         </div>

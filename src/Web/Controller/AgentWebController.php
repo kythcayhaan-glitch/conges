@@ -81,27 +81,21 @@ final class AgentWebController extends AbstractController
             throw $this->createNotFoundException('Utilisateur introuvable.');
         }
 
-        $newBalance  = (float) $request->request->get('leaveBalanceHours', 0.0);
-        $balanceType = $request->request->get('balanceType', 'CONGE');
+        $congeBalance    = (float) $request->request->get('congeBalance', $user->getLeaveBalance()->getValue());
+        $rttBalance      = (float) $request->request->get('rttBalance', $user->getRttBalance()->getValue());
+        $heureSupBalance = (float) $request->request->get('heureSupBalance', $user->getHeureSupBalance()->getValue());
 
-        if ($newBalance < 0) {
-            $this->addFlash('error', 'Le solde ne peut pas être négatif.');
+        if ($congeBalance < 0 || $rttBalance < 0 || $heureSupBalance < 0) {
+            $this->addFlash('error', 'Les soldes ne peuvent pas être négatifs.');
             return $this->redirectToRoute('app_agents_show', ['id' => $id]);
         }
 
-        match($balanceType) {
-            'RTT'       => $user->applyRttBalance(new LeaveBalance($newBalance)),
-            'HEURE_SUP' => $user->applyHeureSupBalance(new LeaveBalance($newBalance)),
-            default     => $user->applyLeaveBalance(new LeaveBalance($newBalance)),
-        };
+        $user->applyLeaveBalance(new LeaveBalance($congeBalance));
+        $user->applyRttBalance(new LeaveBalance($rttBalance));
+        $user->applyHeureSupBalance(new LeaveBalance($heureSupBalance));
         $this->em->flush();
 
-        $label = match($balanceType) {
-            'RTT'       => 'RTT',
-            'HEURE_SUP' => 'heures supplémentaires',
-            default     => 'congés',
-        };
-        $this->addFlash('success', "Solde $label mis à jour.");
+        $this->addFlash('success', 'Soldes mis à jour.');
 
         return $this->redirectToRoute('app_agents_show', ['id' => $id]);
     }

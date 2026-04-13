@@ -113,9 +113,10 @@ class LeaveRequest
         $this->updatedAt      = new \DateTimeImmutable();
     }
 
-    public function approve(): void  { $this->transition(LeaveStatus::APPROVED); }
-    public function reject(): void   { $this->transition(LeaveStatus::REJECTED); }
-    public function cancel(): void   { $this->transition(LeaveStatus::CANCELLED); }
+    public function approve(): void         { $this->transition(LeaveStatus::APPROVED); }
+    public function validateByChef(): void  { $this->transition(LeaveStatus::VALIDATED_CHEF); }
+    public function reject(): void          { $this->transition(LeaveStatus::REJECTED); }
+    public function cancel(): void          { $this->transition(LeaveStatus::CANCELLED); }
 
     private function transition(LeaveStatus $newStatus): void
     {
@@ -143,10 +144,11 @@ class LeaveRequest
     public function getMotif(): ?string  { return $this->motif; }
     public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
-    public function isPending(): bool    { return $this->statut === LeaveStatus::PENDING; }
-    public function isApproved(): bool   { return $this->statut === LeaveStatus::APPROVED; }
-    public function isRejected(): bool   { return $this->statut === LeaveStatus::REJECTED; }
-    public function isCancelled(): bool  { return $this->statut === LeaveStatus::CANCELLED; }
+    public function isPending(): bool          { return $this->statut === LeaveStatus::PENDING; }
+    public function isValidatedByChef(): bool  { return $this->statut === LeaveStatus::VALIDATED_CHEF; }
+    public function isApproved(): bool         { return $this->statut === LeaveStatus::APPROVED; }
+    public function isRejected(): bool         { return $this->statut === LeaveStatus::REJECTED; }
+    public function isCancelled(): bool        { return $this->statut === LeaveStatus::CANCELLED; }
 
     // Serialization helpers
     #[Groups(['leave:read'])] #[SerializedName('userId')]

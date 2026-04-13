@@ -47,6 +47,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string')]
     private string $password;
 
+    /** @var string[] */
+    #[ORM\Column(type: 'json', name: 'service_numbers', options: ['default' => '[]'])]
+    private array $serviceNumbers = [];
+
     #[ORM\Column(type: 'datetime_immutable')]
     private \DateTimeImmutable $updatedAt;
 
@@ -60,17 +64,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         float $leaveBalanceValue = 0.0,
         float $rttBalanceValue = 0.0,
         float $heureSupBalanceValue = 0.0,
+        array $serviceNumbers = [],
     ) {
-        $this->id                = $id;
-        $this->email             = $email;
-        $this->roles             = $roles;
-        $this->username          = $username ?? strstr($email, '@', true);
-        $this->nom               = $nom;
-        $this->prenom            = $prenom;
-        $this->leaveBalanceValue = $leaveBalanceValue;
-        $this->rttBalanceValue        = $rttBalanceValue;
-        $this->heureSupBalanceValue   = $heureSupBalanceValue;
-        $this->updatedAt              = new \DateTimeImmutable();
+        $this->id                   = $id;
+        $this->email                = $email;
+        $this->roles                = $roles;
+        $this->username             = $username ?? strstr($email, '@', true);
+        $this->nom                  = $nom;
+        $this->prenom               = $prenom;
+        $this->leaveBalanceValue    = $leaveBalanceValue;
+        $this->rttBalanceValue      = $rttBalanceValue;
+        $this->heureSupBalanceValue = $heureSupBalanceValue;
+        $this->serviceNumbers       = $serviceNumbers;
+        $this->updatedAt            = new \DateTimeImmutable();
     }
 
     public function getUserIdentifier(): string { return $this->username; }
@@ -142,6 +148,37 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->heureSupBalanceValue = $balance->getValue();
         $this->updatedAt            = new \DateTimeImmutable();
+    }
+
+    /** @return string[] */
+    public function getServiceNumbers(): array { return $this->serviceNumbers; }
+
+    /**
+     * Accepte un tableau de numéros bruts (ex: ['3', '11']) et les normalise en 2 chiffres.
+     * @param string[] $numbers
+     */
+    public function setServiceNumbers(array $numbers): void
+    {
+        $normalized = [];
+        foreach ($numbers as $n) {
+            $n = trim((string) $n);
+            if ($n !== '') {
+                $normalized[] = str_pad($n, 2, '0', STR_PAD_LEFT);
+            }
+        }
+        $this->serviceNumbers = array_values(array_unique($normalized));
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    public function hasServiceNumber(string $sn): bool
+    {
+        return in_array(str_pad(trim($sn), 2, '0', STR_PAD_LEFT), $this->serviceNumbers, true);
+    }
+
+    /** Retourne les numéros formatés séparés par des virgules, pour affichage. */
+    public function getServiceNumbersDisplay(): string
+    {
+        return implode(', ', $this->serviceNumbers);
     }
 
     public function hasAgentProfile(): bool

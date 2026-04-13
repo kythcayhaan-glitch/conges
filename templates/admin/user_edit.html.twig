@@ -48,6 +48,12 @@
                         <label class="form-check-label text-muted" for="role_agent">Agent <small>(toujours actif)</small></label>
                     </div>
                     <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="role_chef"
+                               name="roles[]" value="ROLE_CHEF_SERVICE"
+                               {{ 'ROLE_CHEF_SERVICE' in user.roles ? 'checked' : '' }}>
+                        <label class="form-check-label" for="role_chef">Chef de service</label>
+                    </div>
+                    <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="role_rh"
                                name="roles[]" value="ROLE_RH"
                                {{ 'ROLE_RH' in user.roles ? 'checked' : '' }}>
@@ -79,12 +85,38 @@
                 </div>
             </div>
 
-            <div class="mb-4">
-                <label for="leaveBalanceHours" class="form-label fw-semibold">Solde de congés (heures)</label>
-                <div class="input-group" style="max-width:200px">
-                    <input type="number" id="leaveBalanceHours" name="leaveBalanceHours" class="form-control"
-                           value="{{ user.leaveBalance.value }}" min="0" step="0.5">
-                    <span class="input-group-text">h</span>
+            <div class="mb-3" style="max-width:260px">
+                <label for="serviceNumbers" class="form-label fw-semibold">N° de service(s)</label>
+                <input type="text" id="serviceNumbers" name="serviceNumbers" class="form-control font-monospace"
+                       value="{{ user.serviceNumbers|join(', ') }}"
+                       placeholder="ex : 03, 11">
+                <div class="form-text">Un ou plusieurs numéros séparés par des virgules (ex : 03, 11).</div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-sm-4">
+                    <label for="leaveBalanceHours" class="form-label fw-semibold">Solde congés</label>
+                    <div class="input-group">
+                        <input type="number" id="leaveBalanceHours" name="leaveBalanceHours" class="form-control"
+                               value="{{ user.leaveBalance.value }}" min="0" step="0.25">
+                        <span class="input-group-text">h</span>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <label for="rttBalanceHours" class="form-label fw-semibold">Solde RTT</label>
+                    <div class="input-group">
+                        <input type="number" id="rttBalanceHours" name="rttBalanceHours" class="form-control"
+                               value="{{ user.rttBalance.value }}" min="0" step="0.25">
+                        <span class="input-group-text">j</span>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <label for="heureSupBalanceHours" class="form-label fw-semibold">Solde heures sup.</label>
+                    <div class="input-group">
+                        <input type="number" id="heureSupBalanceHours" name="heureSupBalanceHours" class="form-control"
+                               value="{{ user.heureSupBalance.value }}" min="0" step="0.25">
+                        <span class="input-group-text">h</span>
+                    </div>
                 </div>
             </div>
 

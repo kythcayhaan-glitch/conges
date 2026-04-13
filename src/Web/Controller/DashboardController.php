@@ -33,7 +33,8 @@ final class DashboardController extends AbstractController
         $user = $this->getUser();
 
         if ($this->isGranted('ROLE_RH')) {
-            $pendingLeaves = $this->leaveRepository->findAllPending();
+            $pendingLeaves       = $this->leaveRepository->findAllPending();
+            $validatedChefLeaves = $this->leaveRepository->findAllValidatedByChef();
 
             $users      = $this->em->getRepository(User::class)->findAll();
             $agentNames = [];
@@ -42,9 +43,33 @@ final class DashboardController extends AbstractController
             }
 
             return $this->render('dashboard/index.html.twig', [
+                'pending_leaves'       => $pendingLeaves,
+                'validated_chef_leaves'=> $validatedChefLeaves,
+                'agent_names'          => $agentNames,
+                'current_user'         => $user instanceof User ? $user : null,
+            ]);
+        }
+
+        if ($this->isGranted('ROLE_CHEF_SERVICE') && $user instanceof User) {
+            $chefServices   = $user->getServiceNumbers();
+            $allUsers       = $this->em->getRepository(User::class)->findAll();
+            $serviceUsers   = array_values(array_filter(
+                $allUsers,
+                fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0
+            ));
+            $serviceUserIds = array_map(fn(User $u) => $u->getId(), $serviceUsers);
+            $pendingLeaves  = $this->leaveRepository->findPendingByUserIds($serviceUserIds);
+
+            $agentNames = [];
+            foreach ($serviceUsers as $u) {
+                $agentNames[$u->getId()] = $u->getNomComplet() ?? $u->getUsername();
+            }
+
+            return $this->render('dashboard/index.html.twig', [
                 'pending_leaves' => $pendingLeaves,
                 'agent_names'    => $agentNames,
-                'current_user'   => $user instanceof User ? $user : null,
+                'current_user'   => $user,
+                'is_chef'        => true,
             ]);
         }
 

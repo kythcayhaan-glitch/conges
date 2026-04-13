@@ -8,14 +8,70 @@
         <i class="bi bi-{{ leave_type.value == 'RTT' ? 'clock' : 'calendar3' }} me-2"></i>
         {% if is_granted('ROLE_RH') %}Toutes les demandes — {{ leave_type.label() }}{% else %}Mes demandes — {{ leave_type.label() }}{% endif %}
     </h1>
-    <a href="{{ path('app_leave_new', {type: leave_type.value}) }}" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-1"></i>Nouvelle demande
-    </a>
+    <div class="d-flex gap-2">
+        {% if print_users is defined and print_users is not empty %}
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#printModal">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en pdf
+        </button>
+        {% else %}
+        <a href="{{ path('app_leave_pdf', {type: leave_type.value, statut: app.request.query.get('statut')}) }}"
+           class="btn btn-outline-secondary" target="_blank">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en pdf
+        </a>
+        {% endif %}
+        <a href="{{ path('app_leave_new', {type: leave_type.value}) }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Nouvelle demande
+        </a>
+    </div>
 </div>
+
+{% if current_user is defined and current_user %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-1">Solde congés</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <span class="display-6 fw-bold text-primary">{{ current_user.leaveBalance.value|round(2) }}</span>
+                    <span class="text-muted mb-1">h</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-1">Solde RTT</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <span class="display-6 fw-bold text-cyan">{{ current_user.rttBalance.value|round(1) }}</span>
+                    <span class="text-muted mb-1">jour(s)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle text-muted mb-1">Solde heures sup.</h6>
+                <div class="d-flex align-items-end gap-2">
+                    <span class="display-6 fw-bold text-orange">{{ current_user.heureSupBalance.value|round(2) }}</span>
+                    <span class="text-muted mb-1">h</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if is_granted('ROLE_RH') %}
 <div class="mb-3">
     <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-sm {{ app.request.query.get('statut') is null ? 'btn-secondary' : 'btn-outline-secondary' }} me-1">Toutes</a>
+    <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'PENDING'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'PENDING' ? 'btn-warning' : 'btn-outline-warning' }} me-1">En attente</a>
+    <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'VALIDATED_CHEF'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'VALIDATED_CHEF' ? 'btn-info text-dark' : 'btn-outline-info' }}">Validées chef</a>
+</div>
+{% elseif is_chef is defined and is_chef %}
+<div class="mb-3">
+    <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-sm {{ app.request.query.get('statut') is null ? 'btn-secondary' : 'btn-outline-secondary' }} me-1">Toutes (mon service)</a>
     <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'PENDING'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'PENDING' ? 'btn-warning' : 'btn-outline-warning' }}">En attente</a>
 </div>
 {% endif %}
@@ -28,7 +84,7 @@
             <table class="table table-hover mb-0">
                 <thead class="table-light">
                     <tr>
-                        {% if is_granted('ROLE_RH') %}<th>Agent</th>{% endif %}
+                        {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<th>Agent</th>{% endif %}
                         <th>Période</th>
                         <th>Motif</th>
                         <th>Statut</th>
@@ -39,7 +95,7 @@
                 <tbody>
                     {% for leave in leaves %}
                     <tr>
-                        {% if is_granted('ROLE_RH') %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
+                        {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
                         <td class="text-nowrap">
                             {{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}
                             {% if leave.type.value == 'RTT' %}
@@ -82,4 +138,50 @@
         </div>
     {% endif %}
 </div>
+
+{% if print_users is defined and print_users is not empty %}
+<div class="modal fade" id="printModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="printAgent" class="form-label fw-semibold">Agent</label>
+                    <select id="printAgent" class="form-select">
+                        {% if is_granted('ROLE_RH') %}
+                        <option value="">— Tous les agents —</option>
+                        {% else %}
+                        <option value="">— Tout mon service —</option>
+                        {% endif %}
+                        {% for u in print_users %}
+                        <option value="{{ u.id }}">{{ u.nomComplet ?? u.username }}{% if u.serviceNumber %} (svc {{ u.serviceNumber }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="printConfirmBtn">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Générer le PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('printConfirmBtn').addEventListener('click', function () {
+    const agentId = document.getElementById('printAgent').value;
+    const base    = {{ path('app_leave_pdf', {type: leave_type.value})|json_encode|raw }};
+    const statut  = {{ (app.request.query.get('statut') ?? '')|json_encode|raw }};
+    let url = base;
+    if (statut) url += '&statut=' + encodeURIComponent(statut);
+    if (agentId) url += '&userId=' + encodeURIComponent(agentId);
+    window.open(url, '_blank');
+    bootstrap.Modal.getInstance(document.getElementById('printModal')).hide();
+});
+</script>
+{% endif %}
 {% endblock %}

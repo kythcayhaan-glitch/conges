@@ -54,16 +54,22 @@ final class AdminController extends AbstractController
                 return $this->render('admin/user_new.html.twig', ['form_data' => $request->request->all()]);
             }
 
-            $roles = $this->resolveRoles($request->request->all('roles') ?: []);
+            $roles           = $this->resolveRoles($request->request->all('roles') ?: []);
+            $serviceNumbers  = $this->parseServiceNumbers((string) $request->request->get('serviceNumbers', ''));
+            $rttBalance      = (float) $request->request->get('rttBalanceHours', 0.0);
+            $heureSupBalance = (float) $request->request->get('heureSupBalanceHours', 0.0);
 
             $user = new User(
-                id:               Uuid::v4()->toRfc4122(),
-                email:            $email,
-                roles:            $roles,
-                username:         $username,
-                nom:              $nom !== '' ? $nom : null,
-                prenom:           $prenom !== '' ? $prenom : null,
-                leaveBalanceValue: $balance,
+                id:                  Uuid::v4()->toRfc4122(),
+                email:               $email,
+                roles:               $roles,
+                username:            $username,
+                nom:                 $nom !== '' ? $nom : null,
+                prenom:              $prenom !== '' ? $prenom : null,
+                leaveBalanceValue:   $balance,
+                rttBalanceValue:     $rttBalance,
+                heureSupBalanceValue: $heureSupBalance,
+                serviceNumbers:      $serviceNumbers,
             );
             $user->setPassword($this->hasher->hashPassword($user, $password));
 
@@ -138,6 +144,14 @@ final class AdminController extends AbstractController
             $user->setNom($nom !== '' ? $nom : null);
             $user->setPrenom($prenom !== '' ? $prenom : null);
             $user->applyLeaveBalance(new \App\Shared\Domain\ValueObject\LeaveBalance($balance));
+            $user->applyRttBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(
+                (float) $request->request->get('rttBalanceHours', $user->getRttBalance()->getValue())
+            ));
+            $user->applyHeureSupBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(
+                (float) $request->request->get('heureSupBalanceHours', $user->getHeureSupBalance()->getValue())
+            ));
+
+            $user->setServiceNumbers($this->parseServiceNumbers((string) $request->request->get('serviceNumbers', '')));
 
             $this->em->flush();
 
@@ -174,12 +188,29 @@ final class AdminController extends AbstractController
     /** @param string[] $selected */
     private function resolveRoles(array $selected): array
     {
-        $allowed = ['ROLE_AGENT', 'ROLE_RH', 'ROLE_ADMIN'];
+        $allowed = ['ROLE_AGENT', 'ROLE_CHEF_SERVICE', 'ROLE_RH', 'ROLE_ADMIN'];
         $roles   = array_values(array_intersect($selected, $allowed));
         if (!in_array('ROLE_AGENT', $roles, true)) {
             $roles[] = 'ROLE_AGENT';
         }
 
         return $roles;
+    }
+
+    /**
+     * Convertit une saisie texte "03, 11" en tableau normalisé ['03', '11'].
+     * @return string[]
+     */
+    private function parseServiceNumbers(string $raw): array
+    {
+        $parts = preg_split('/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY);
+        $result = [];
+        foreach ($parts as $p) {
+            $p = trim($p);
+            if (preg_match('/^\d{1,2}$/', $p)) {
+                $result[] = str_pad($p, 2, '0', STR_PAD_LEFT);
+            }
+        }
+        return array_values(array_unique($result));
     }
 }

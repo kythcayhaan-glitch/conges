@@ -25,6 +25,21 @@ interface LeaveRequestRepositoryInterface
     /** @return LeaveRequest[] */
     public function findAllPending(): array;
 
+    /** @return LeaveRequest[] */
+    public function findAllValidatedByChef(): array;
+
+    /**
+     * @param  string[]       $userIds
+     * @return LeaveRequest[]
+     */
+    public function findByUserIds(array $userIds): array;
+
+    /**
+     * @param  string[]       $userIds
+     * @return LeaveRequest[]
+     */
+    public function findPendingByUserIds(array $userIds): array;
+
     public function delete(LeaveRequest $leaveRequest): void;
 
     public function deleteAllByUserId(string $userId): void;

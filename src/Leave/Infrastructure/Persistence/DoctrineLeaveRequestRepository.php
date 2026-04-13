@@ -72,6 +72,49 @@ final class DoctrineLeaveRequestRepository implements LeaveRequestRepositoryInte
             ->getQuery()->getResult();
     }
 
+    /** @return LeaveRequest[] */
+    public function findAllValidatedByChef(): array
+    {
+        return $this->entityManager->createQueryBuilder()
+            ->select('lr')->from(LeaveRequest::class, 'lr')
+            ->where('lr.statut = :statut')
+            ->setParameter('statut', LeaveStatus::VALIDATED_CHEF)
+            ->orderBy('lr.createdAt', 'ASC')
+            ->getQuery()->getResult();
+    }
+
+    /** @return LeaveRequest[] */
+    public function findByUserIds(array $userIds): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        return $this->entityManager->createQueryBuilder()
+            ->select('lr')->from(LeaveRequest::class, 'lr')
+            ->where('lr.userId IN (:userIds)')
+            ->setParameter('userIds', $userIds)
+            ->orderBy('lr.createdAt', 'DESC')
+            ->getQuery()->getResult();
+    }
+
+    /** @return LeaveRequest[] */
+    public function findPendingByUserIds(array $userIds): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        return $this->entityManager->createQueryBuilder()
+            ->select('lr')->from(LeaveRequest::class, 'lr')
+            ->where('lr.userId IN (:userIds)')
+            ->andWhere('lr.statut = :statut')
+            ->setParameter('userIds', $userIds)
+            ->setParameter('statut', LeaveStatus::PENDING)
+            ->orderBy('lr.createdAt', 'ASC')
+            ->getQuery()->getResult();
+    }
+
     public function delete(LeaveRequest $leaveRequest): void
     {
         $logs = $this->entityManager->createQueryBuilder()

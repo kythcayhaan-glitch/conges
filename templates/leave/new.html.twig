@@ -39,7 +39,7 @@
                            value="{{ form_data.dateDebut ?? '' }}" required onchange="onDateChange()">
                 </div>
                 <div class="col-6">
-                    <label for="dateFin" class="form-label fw-semibold">Date de fin <span class="text-danger">*</span></label>
+                    <label for="dateFin" class="form-label fw-semibold">Date de fin <span class="text-danger" id="dateFinStar">*</span></label>
                     <input type="date" id="dateFin" name="dateFin" class="form-control"
                            value="{{ form_data.dateFin ?? '' }}" required onchange="calculateHours()">
                 </div>
@@ -47,7 +47,7 @@
 
             {% if leave_type.value != 'RTT' %}
             {# Mode créneaux #}
-            <div class="mb-3 p-3 border rounded bg-light" id="modeCreneau">
+            <div class="mb-3 p-3 border rounded bg-body-secondary" id="modeCreneau">
                 <div class="fw-semibold mb-2 small text-uppercase text-muted">Créneaux</div>
                 <div class="d-flex gap-4 flex-wrap">
                     <div class="form-check">
@@ -93,8 +93,8 @@
             <div class="mb-3">
                 <label class="form-label fw-semibold">Durée calculée</label>
                 <div class="input-group" style="max-width:200px">
-                    <input type="text" id="heuresDisplay" class="form-control fw-bold text-primary"
-                           readonly placeholder="—" style="background:#f8f9fa">
+                    <input type="text" id="heuresDisplay" class="form-control fw-bold text-primary bg-body-secondary"
+                           readonly placeholder="—">
                     <span class="input-group-text">{{ leave_type.value == 'RTT' ? 'jour(s)' : 'heures' }}</span>
                 </div>
                 <div id="heuresError" class="text-danger small mt-1" style="display:none">
@@ -193,12 +193,27 @@ function onCreneauChange() {
     const matin          = document.getElementById('matin').checked;
     const apresMidi      = document.getElementById('apresMidi').checked;
     const modeH          = document.getElementById('modeHeures');
+    const dateFinInput   = document.getElementById('dateFin');
+    const dateDebutInput = document.getElementById('dateDebut');
+    const star           = document.getElementById('dateFinStar');
 
     // Journée entière désactive matin/apresMidi
     document.getElementById('matin').disabled     = journeeEntiere;
     document.getElementById('apresMidi').disabled = journeeEntiere;
     // Matin/apresMidi désactive journée entière
     document.getElementById('journeeEntiere').disabled = matin || apresMidi;
+
+    if (journeeEntiere || matin || apresMidi) {
+        // Date de fin = date de début, plus obligatoire
+        if (dateDebutInput.value) dateFinInput.value = dateDebutInput.value;
+        dateFinInput.removeAttribute('required');
+        dateFinInput.readOnly = true;
+        star.style.display = 'none';
+    } else {
+        dateFinInput.setAttribute('required', 'required');
+        dateFinInput.readOnly = false;
+        star.style.display = '';
+    }
 
     if (journeeEntiere || matin || apresMidi) {
         modeH.style.opacity = '0.4';

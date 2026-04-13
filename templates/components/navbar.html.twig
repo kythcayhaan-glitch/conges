@@ -67,10 +67,16 @@
                 </li>
                 {% endif %}
             </ul>
-            <ul class="navbar-nav">
+            <ul class="navbar-nav align-items-center">
+                <li class="nav-item me-1">
+                    <button id="theme-toggle" class="btn btn-link nav-link px-2" title="Thème"></button>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle me-1"></i>{{ app.user.prenom }} {{ app.user.nom }}
+                        {% if app.user.serviceNumber %}
+                            <span class="badge bg-secondary font-monospace ms-1">{{ app.user.serviceNumber }}</span>
+                        {% endif %}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
                         {% if not is_granted('ROLE_RH') %}

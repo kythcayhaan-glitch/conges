@@ -9,6 +9,7 @@ use App\Leave\Application\Command\EditLeave\EditLeaveCommand;
 use App\Leave\Application\Command\CancelLeave\CancelLeaveCommand;
 use App\Leave\Application\Command\RejectLeave\RejectLeaveCommand;
 use App\Leave\Application\Command\SubmitLeave\SubmitLeaveCommand;
+use App\Leave\Application\Command\ValidateByChef\ValidateByChefCommand;
 use App\Leave\Domain\Repository\LeaveRequestRepositoryInterface;
 use App\Leave\Domain\Service\LeaveDebitService;
 use App\Leave\Domain\ValueObject\LeaveType;
@@ -44,6 +45,8 @@ final class LeaveWebController extends AbstractController
         $typeParam    = $request->query->get('type', 'CONGE');
         $leaveType    = LeaveType::tryFrom(strtoupper($typeParam)) ?? LeaveType::CONGE;
 
+        $isChef = $this->isGranted('ROLE_CHEF_SERVICE') && !$this->isGranted('ROLE_RH');
+
         if ($this->isGranted('ROLE_RH')) {
             $statut       = $request->query->get('statut');
             $userIdFilter = $request->query->get('userId');
@@ -52,8 +55,26 @@ final class LeaveWebController extends AbstractController
                 $leaves = $this->leaveRepository->findByUserId($userIdFilter);
             } elseif ($statut === 'PENDING') {
                 $leaves = $this->leaveRepository->findAllPending();
+            } elseif ($statut === 'VALIDATED_CHEF') {
+                $leaves = $this->leaveRepository->findAllValidatedByChef();
             } else {
                 $leaves = $this->leaveRepository->findAll();
+            }
+        } elseif ($isChef && $user instanceof User) {
+            // Chef de service : voit les demandes de tous ses services
+            $chefServices   = $user->getServiceNumbers();
+            $allUsers       = $this->em->getRepository(User::class)->findAll();
+            $serviceUsers   = array_filter(
+                $allUsers,
+                fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0
+            );
+            $serviceUserIds = array_map(fn(User $u) => $u->getId(), $serviceUsers);
+
+            $statut = $request->query->get('statut');
+            if ($statut === 'PENDING') {
+                $leaves = $this->leaveRepository->findPendingByUserIds($serviceUserIds);
+            } else {
+                $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
             }
         } else {
             $leaves = $user instanceof User
@@ -85,13 +106,121 @@ final class LeaveWebController extends AbstractController
             }
         }
 
+        // Agents disponibles pour le modal d'impression
+        $printUsers = [];
+        if ($this->isGranted('ROLE_RH')) {
+            $printUsers = $this->em->getRepository(User::class)->findBy([], ['username' => 'ASC']);
+        } elseif ($isChef && $user instanceof User && !empty($user->getServiceNumbers())) {
+            $chefServices = $user->getServiceNumbers();
+            $allU = $this->em->getRepository(User::class)->findAll();
+            usort($allU, fn(User $a, User $b) => strcmp($a->getUsername(), $b->getUsername()));
+            $printUsers = array_values(array_filter(
+                $allU,
+                fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0
+            ));
+        }
+
         return $this->render('leave/list.html.twig', [
-            'leaves'      => $leaves,
-            'agent_names' => $agentNames,
-            'last_logs'   => $lastLogs,
-            'user_emails' => $userEmails,
-            'leave_type'  => $leaveType,
+            'leaves'       => $leaves,
+            'agent_names'  => $agentNames,
+            'last_logs'    => $lastLogs,
+            'user_emails'  => $userEmails,
+            'leave_type'   => $leaveType,
+            'is_chef'      => $isChef,
+            'current_user' => $user instanceof User ? $user : null,
+            'print_users'  => $printUsers,
         ]);
+    }
+
+    #[Route('/pdf', name: 'pdf', methods: ['GET'])]
+    #[IsGranted('ROLE_AGENT')]
+    public function pdf(Request $request): Response
+    {
+        $currentUser = $this->getUser();
+        $typeParam   = $request->query->get('type', 'CONGE');
+        $leaveType   = LeaveType::tryFrom(strtoupper($typeParam)) ?? LeaveType::CONGE;
+        $isRh        = $this->isGranted('ROLE_RH');
+        $isChef      = $this->isGranted('ROLE_CHEF_SERVICE') && !$isRh;
+        $targetId    = $request->query->get('userId');
+
+        // Résolution de l'utilisateur cible pour le nom du fichier et les soldes
+        $targetUser = null;
+        if ($targetId && ($isRh || $isChef)) {
+            $targetUser = $this->em->getRepository(User::class)->find($targetId);
+            // Sécurité : un chef ne peut imprimer que les agents de ses services
+            if ($isChef && $targetUser instanceof User
+                && ($currentUser instanceof User)
+                && count(array_intersect($targetUser->getServiceNumbers(), $currentUser->getServiceNumbers())) === 0
+            ) {
+                $targetUser = null;
+                $targetId   = null;
+            }
+        }
+
+        if ($targetId && $targetUser) {
+            // Impression d'un agent spécifique
+            $leaves = $this->leaveRepository->findByUserId($targetId);
+        } elseif ($isRh) {
+            $statut = $request->query->get('statut');
+            $leaves = match($statut) {
+                'PENDING'        => $this->leaveRepository->findAllPending(),
+                'VALIDATED_CHEF' => $this->leaveRepository->findAllValidatedByChef(),
+                default          => $this->leaveRepository->findAll(),
+            };
+        } elseif ($isChef && $currentUser instanceof User && !empty($currentUser->getServiceNumbers())) {
+            $chefSvcs = $currentUser->getServiceNumbers();
+            $allU     = $this->em->getRepository(User::class)->findAll();
+            $svcUsers = array_filter($allU, fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefSvcs)) > 0);
+            $serviceUserIds = array_map(fn(User $u) => $u->getId(), $svcUsers);
+            $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
+        } else {
+            $leaves = $currentUser instanceof User
+                ? $this->leaveRepository->findByUserId($currentUser->getId())
+                : [];
+        }
+
+        $leaves = array_values(array_filter($leaves, fn($l) => $l->getType() === $leaveType));
+
+        $allUsers   = $this->em->getRepository(User::class)->findAll();
+        $agentNames = [];
+        foreach ($allUsers as $u) {
+            $agentNames[$u->getId()] = $u->getNomComplet() ?? $u->getUsername();
+        }
+
+        // Utilisateur affiché dans l'entête PDF : agent cible ou utilisateur courant
+        $pdfUser = $targetUser ?? ($currentUser instanceof User ? $currentUser : null);
+
+        $html = $this->renderView('leave/list_pdf.html.twig', [
+            'leaves'       => $leaves,
+            'leave_type'   => $leaveType,
+            'agent_names'  => $agentNames,
+            'current_user' => $pdfUser,
+            'is_rh'        => $isRh && !$targetUser,
+        ]);
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->loadHtml($html);
+        $dompdf->render();
+
+        // Nom du fichier basé sur l'agent cible (ou le connecté)
+        $nameUser = $targetUser ?? ($currentUser instanceof User ? $currentUser : null);
+        $prenom   = $nameUser instanceof User ? ($nameUser->getPrenom() ?? '') : '';
+        $nom      = $nameUser instanceof User ? ($nameUser->getNom() ?? '') : '';
+        $namePart = trim($prenom . '_' . $nom);
+        $namePart = $namePart !== '_'
+            ? preg_replace('/[^a-zA-Z0-9_\-]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $namePart))
+            : 'agent';
+        $filename = sprintf('%s_%s_%s.pdf', strtolower($namePart), strtolower($leaveType->value), date('d-m-Y'));
+
+        return new Response(
+            $dompdf->output(),
+            200,
+            [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]
+        );
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
@@ -118,11 +247,17 @@ final class LeaveWebController extends AbstractController
             $matin          = (bool) $request->request->get('matin', false);
             $apresMidi      = (bool) $request->request->get('apresMidi', false);
             $journeeEntiere = (bool) $request->request->get('journeeEntiere', false);
+            $dateDebut      = (string) $request->request->get('dateDebut', '');
+            $dateFin        = (string) $request->request->get('dateFin', '');
+            // Si créneau sélectionné et dateFin absente, on utilise dateDebut
+            if (($journeeEntiere || $matin || $apresMidi) && $dateFin === '') {
+                $dateFin = $dateDebut;
+            }
             $command        = new SubmitLeaveCommand(
                 agentId:        $agentId,
-                dateDebut:      (string) $request->request->get('dateDebut', ''),
+                dateDebut:      $dateDebut,
                 heureDebut:     ($h = $request->request->get('heureDebut', '')) !== '' ? $h : null,
-                dateFin:        (string) $request->request->get('dateFin', ''),
+                dateFin:        $dateFin,
                 heureFin:       ($h = $request->request->get('heureFin', '')) !== '' ? $h : null,
                 motif:          ($m = trim((string) $request->request->get('motif', ''))) !== '' ? $m : null,
                 matin:          $matin,
@@ -178,7 +313,23 @@ final class LeaveWebController extends AbstractController
 
         $leaveUser = $this->em->getRepository(User::class)->find($leave->getUserId());
 
-        $auditLogs     = $this->isGranted('ROLE_RH')
+        $isChef = $this->isGranted('ROLE_CHEF_SERVICE');
+
+        // Vérifie que le chef est bien du même service que l'agent
+        $canValidateChef = false;
+        if ($isChef) {
+            $currentUser = $this->getUser();
+            if ($currentUser instanceof User
+                && !empty($currentUser->getServiceNumbers())
+                && $leaveUser instanceof User
+                && count(array_intersect($leaveUser->getServiceNumbers(), $currentUser->getServiceNumbers())) > 0
+                && $leave->isPending()
+            ) {
+                $canValidateChef = true;
+            }
+        }
+
+        $auditLogs = $this->isGranted('ROLE_RH') || $isChef
             ? $this->leaveRepository->findAuditLogsByLeaveRequestId($id)
             : [];
 
@@ -194,10 +345,12 @@ final class LeaveWebController extends AbstractController
         }
 
         return $this->render('leave/show.html.twig', [
-            'leave'         => $leave,
-            'leave_user'    => $leaveUser,
-            'audit_logs'    => $auditLogs,
-            'rejection_log' => $rejectionLog,
+            'leave'              => $leave,
+            'leave_user'         => $leaveUser,
+            'audit_logs'         => $auditLogs,
+            'rejection_log'      => $rejectionLog,
+            'is_chef'            => $isChef,
+            'can_validate_chef'  => $canValidateChef,
         ]);
     }
 
@@ -265,7 +418,7 @@ final class LeaveWebController extends AbstractController
     }
 
     #[Route('/{id}/approve', name: 'approve', methods: ['POST'])]
-    #[IsGranted('ROLE_RH')]
+    #[IsGranted('ROLE_AGENT')]
     public function approve(string $id, Request $request): Response
     {
         if (!$this->isCsrfTokenValid('leave_approve_' . $id, $request->request->get('_token'))) {
@@ -297,7 +450,7 @@ final class LeaveWebController extends AbstractController
     }
 
     #[Route('/{id}/reject', name: 'reject', methods: ['POST'])]
-    #[IsGranted('ROLE_RH')]
+    #[IsGranted('ROLE_AGENT')]
     public function reject(string $id, Request $request): Response
     {
         if (!$this->isCsrfTokenValid('leave_reject_' . $id, $request->request->get('_token'))) {
@@ -321,6 +474,38 @@ final class LeaveWebController extends AbstractController
                 commentaire:      ($c = trim((string) $request->request->get('commentaire', ''))) !== '' ? $c : null,
             ));
             $this->addFlash('success', 'Demande rejetée.');
+        } catch (\DomainException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_leave_show', ['id' => $id]);
+    }
+
+    #[Route('/{id}/validate-chef', name: 'validate_chef', methods: ['POST'])]
+    #[IsGranted('ROLE_CHEF_SERVICE')]
+    public function validateByChef(string $id, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('leave_validate_chef_' . $id, $request->request->get('_token'))) {
+            $this->addFlash('error', 'Token de sécurité invalide.');
+            return $this->redirectToRoute('app_leave_show', ['id' => $id]);
+        }
+
+        $leave = $this->leaveRepository->findById($id);
+        if ($leave === null) {
+            throw $this->createNotFoundException();
+        }
+
+        $this->denyAccessUnlessGranted(LeaveRequestVoter::LEAVE_VALIDATE_CHEF, $leave);
+
+        $user = $this->getUser();
+
+        try {
+            $this->commandBus->dispatch(new ValidateByChefCommand(
+                leaveRequestId:    $id,
+                validatedByUserId: $user instanceof User ? $user->getId() : '',
+                commentaire:       $request->request->get('commentaire'),
+            ));
+            $this->addFlash('success', 'Demande validée par le chef de service. En attente de validation RH.');
         } catch (\DomainException $e) {
             $this->addFlash('error', $e->getMessage());
         }

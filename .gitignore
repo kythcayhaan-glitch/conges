@@ -1,3 +1,9 @@
+###> secrets & local tools ###
+/config/jwt/
+/composer.phar
+/.claude/
+###< secrets & local tools ###
+
 ###> symfony/framework-bundle ###
 /.env.local
 /.env.local.php

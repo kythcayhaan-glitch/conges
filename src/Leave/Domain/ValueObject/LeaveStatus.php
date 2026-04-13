@@ -12,10 +12,11 @@ namespace App\Leave\Domain\ValueObject;
  */
 enum LeaveStatus: string
 {
-    case PENDING   = 'PENDING';
-    case APPROVED  = 'APPROVED';
-    case REJECTED  = 'REJECTED';
-    case CANCELLED = 'CANCELLED';
+    case PENDING        = 'PENDING';
+    case VALIDATED_CHEF = 'VALIDATED_CHEF';
+    case APPROVED       = 'APPROVED';
+    case REJECTED       = 'REJECTED';
+    case CANCELLED      = 'CANCELLED';
 
     /**
      * Vérifie si la transition vers un nouveau statut est autorisée.
@@ -33,10 +34,11 @@ enum LeaveStatus: string
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::PENDING   => [self::APPROVED, self::REJECTED, self::CANCELLED],
-            self::APPROVED  => [self::CANCELLED],
-            self::REJECTED  => [],
-            self::CANCELLED => [],
+            self::PENDING        => [self::VALIDATED_CHEF, self::APPROVED, self::REJECTED, self::CANCELLED],
+            self::VALIDATED_CHEF => [self::APPROVED, self::REJECTED, self::CANCELLED],
+            self::APPROVED       => [self::CANCELLED],
+            self::REJECTED       => [],
+            self::CANCELLED      => [],
         };
     }
 
@@ -63,10 +65,11 @@ enum LeaveStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::PENDING   => 'En attente',
-            self::APPROVED  => 'Approuvée',
-            self::REJECTED  => 'Rejetée',
-            self::CANCELLED => 'Annulée',
+            self::PENDING        => 'En attente',
+            self::VALIDATED_CHEF => 'Validée chef',
+            self::APPROVED       => 'Approuvée',
+            self::REJECTED       => 'Rejetée',
+            self::CANCELLED      => 'Annulée',
         };
     }
 }

@@ -36,5 +36,6 @@ security:
         - { path: ^/,       roles: ROLE_AGENT }
 
     role_hierarchy:
-        ROLE_RH:    [ROLE_AGENT]
-        ROLE_ADMIN: [ROLE_RH]
+        ROLE_CHEF_SERVICE: [ROLE_AGENT]
+        ROLE_RH:           [ROLE_AGENT]
+        ROLE_ADMIN:        [ROLE_RH, ROLE_CHEF_SERVICE]

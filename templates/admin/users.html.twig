@@ -15,6 +15,7 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
+                    <th>N° service</th>
                     <th>Identifiant</th>
                     <th>Prénom nom</th>
                     <th>E-mail</th>
@@ -26,6 +27,13 @@
                 {% for user in users %}
                 {% set is_self = user.username == app.user.userIdentifier %}
                 <tr class="{{ is_self ? 'table-secondary' : '' }}">
+                    <td>
+                        {% if user.serviceNumber %}
+                            <span class="badge bg-secondary font-monospace">{{ user.serviceNumber }}</span>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <span class="fw-semibold">{{ user.username }}</span>
                         {% if is_self %}
@@ -42,6 +50,8 @@
                                 <span class="badge bg-danger me-1">Admin</span>
                             {% elseif role == 'ROLE_RH' %}
                                 <span class="badge bg-primary me-1">RH</span>
+                            {% elseif role == 'ROLE_CHEF_SERVICE' %}
+                                <span class="badge bg-info text-dark me-1">Chef service</span>
                             {% elseif role == 'ROLE_AGENT' %}
                                 <span class="badge bg-secondary me-1">Agent</span>
                             {% endif %}

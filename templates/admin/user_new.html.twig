@@ -18,11 +18,11 @@
             <h6 class="text-muted fw-semibold mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.05em">Compte</h6>
 
             <div class="mb-3">
-                <label for="username" class="form-label fw-semibold">Nom d'utilisateur <span class="text-danger">*</span></label>
+                <label for="username" class="form-label fw-semibold">Identifiant <span class="text-danger">*</span></label>
                 <input type="text" id="username" name="username" class="form-control"
                        value="{{ form_data.username ?? '' }}" autocomplete="off"
                        pattern="[a-zA-Z0-9._-]+" required>
-                <div class="form-text">Ex : jerome.marliere — utilisé pour la connexion.</div>
+                <div class="form-text">Ex : nom.prénom — utilisé pour la connexion.</div>
             </div>
 
             <div class="mb-3">
@@ -45,6 +45,12 @@
                         <input class="form-check-input" type="checkbox" id="role_agent"
                                name="roles[]" value="ROLE_AGENT" checked disabled>
                         <label class="form-check-label text-muted" for="role_agent">Agent <small>(toujours actif)</small></label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="role_chef"
+                               name="roles[]" value="ROLE_CHEF_SERVICE"
+                               {{ (form_data.roles is defined and 'ROLE_CHEF_SERVICE' in form_data.roles) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="role_chef">Chef de service</label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="role_rh"
@@ -79,14 +85,39 @@
                 </div>
             </div>
 
-            <div class="mb-4">
-                <label for="leaveBalanceHours" class="form-label fw-semibold">Solde initial (heures)</label>
-                <div class="input-group" style="max-width:200px">
-                    <input type="number" id="leaveBalanceHours" name="leaveBalanceHours" class="form-control"
-                           value="{{ form_data.leaveBalanceHours ?? '0' }}" min="0" step="0.5">
-                    <span class="input-group-text">h</span>
+            <div class="mb-3" style="max-width:160px">
+                <label for="serviceNumber" class="form-label fw-semibold">N° de service</label>
+                <input type="text" id="serviceNumber" name="serviceNumber" class="form-control font-monospace"
+                       value="{{ form_data.serviceNumber ?? '' }}"
+                       pattern="[0-9]{1,2}" maxlength="2" placeholder="ex : 03">
+                <div class="form-text">2 chiffres, ex : 01 à 99.</div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-sm-4">
+                    <label for="leaveBalanceHours" class="form-label fw-semibold">Solde congés</label>
+                    <div class="input-group">
+                        <input type="number" id="leaveBalanceHours" name="leaveBalanceHours" class="form-control"
+                               value="{{ form_data.leaveBalanceHours ?? '0' }}" min="0" step="0.25">
+                        <span class="input-group-text">h</span>
+                    </div>
                 </div>
-                <div class="form-text">Renseigner nom et prénom pour créer le profil agent.</div>
+                <div class="col-sm-4">
+                    <label for="rttBalanceHours" class="form-label fw-semibold">Solde RTT</label>
+                    <div class="input-group">
+                        <input type="number" id="rttBalanceHours" name="rttBalanceHours" class="form-control"
+                               value="{{ form_data.rttBalanceHours ?? '0' }}" min="0" step="0.25">
+                        <span class="input-group-text">j</span>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <label for="heureSupBalanceHours" class="form-label fw-semibold">Solde heures sup.</label>
+                    <div class="input-group">
+                        <input type="number" id="heureSupBalanceHours" name="heureSupBalanceHours" class="form-control"
+                               value="{{ form_data.heureSupBalanceHours ?? '0' }}" min="0" step="0.25">
+                        <span class="input-group-text">h</span>
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex gap-2">

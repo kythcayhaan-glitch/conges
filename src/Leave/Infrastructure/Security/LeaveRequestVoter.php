@@ -6,20 +6,31 @@ namespace App\Leave\Infrastructure\Security;
 
 use App\Leave\Domain\Entity\LeaveRequest;
 use App\Security\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 final class LeaveRequestVoter extends Voter
 {
-    public const LEAVE_VIEW    = 'LEAVE_VIEW';
-    public const LEAVE_CANCEL  = 'LEAVE_CANCEL';
-    public const LEAVE_APPROVE = 'LEAVE_APPROVE';
-    public const LEAVE_REJECT  = 'LEAVE_REJECT';
+    public const LEAVE_VIEW          = 'LEAVE_VIEW';
+    public const LEAVE_CANCEL        = 'LEAVE_CANCEL';
+    public const LEAVE_APPROVE       = 'LEAVE_APPROVE';
+    public const LEAVE_REJECT        = 'LEAVE_REJECT';
+    public const LEAVE_VALIDATE_CHEF = 'LEAVE_VALIDATE_CHEF';
 
     private const SUPPORTED_ATTRIBUTES = [
-        self::LEAVE_VIEW, self::LEAVE_CANCEL, self::LEAVE_APPROVE, self::LEAVE_REJECT,
+        self::LEAVE_VIEW,
+        self::LEAVE_CANCEL,
+        self::LEAVE_APPROVE,
+        self::LEAVE_REJECT,
+        self::LEAVE_VALIDATE_CHEF,
     ];
+
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+    ) {
+    }
 
     protected function supports(string $attribute, mixed $subject): bool
     {
@@ -34,22 +45,118 @@ final class LeaveRequestVoter extends Voter
             return false;
         }
 
-        /** @var LeaveRequest $leaveRequest */
-        $leaveRequest = $subject;
+        /** @var LeaveRequest $leave */
+        $leave  = $subject;
+        $roles  = $user->getRoles();
+        $isRh    = in_array('ROLE_RH', $roles, true);
+        $isAdmin = in_array('ROLE_ADMIN', $roles, true);
+        $isChef  = in_array('ROLE_CHEF_SERVICE', $roles, true);
 
         return match ($attribute) {
-            self::LEAVE_VIEW    => in_array('ROLE_RH', $user->getRoles(), true) || $this->isOwner($leaveRequest, $user),
-            self::LEAVE_CANCEL  => in_array('ROLE_RH', $user->getRoles(), true)
-                ? ($leaveRequest->isPending() || $leaveRequest->isApproved())
-                : ($this->isOwner($leaveRequest, $user) && $leaveRequest->isPending()),
-            self::LEAVE_APPROVE => in_array('ROLE_RH', $user->getRoles(), true),
-            self::LEAVE_REJECT  => in_array('ROLE_RH', $user->getRoles(), true),
-            default             => false,
+            self::LEAVE_VIEW          => $this->canView($leave, $user, $isRh, $isAdmin, $isChef),
+            self::LEAVE_CANCEL        => $this->canCancel($leave, $user, $isRh, $isAdmin, $isChef),
+            self::LEAVE_APPROVE       => $this->canApprove($leave, $isRh, $isAdmin),
+            self::LEAVE_REJECT        => $this->canReject($leave, $user, $isRh, $isAdmin, $isChef),
+            self::LEAVE_VALIDATE_CHEF => $this->canValidateChef($leave, $user, $isAdmin, $isChef),
+            default                   => false,
         };
     }
 
-    private function isOwner(LeaveRequest $leaveRequest, UserInterface $user): bool
+    private function canView(LeaveRequest $leave, UserInterface $user, bool $isRh, bool $isAdmin, bool $isChef): bool
     {
-        return $user instanceof User && $leaveRequest->getUserId() === $user->getId();
+        if ($isRh || $isAdmin) {
+            return true;
+        }
+        if ($this->isOwner($leave, $user)) {
+            return true;
+        }
+        if ($isChef && $this->isSameService($leave, $user)) {
+            return true;
+        }
+        return false;
+    }
+
+    private function canCancel(LeaveRequest $leave, UserInterface $user, bool $isRh, bool $isAdmin, bool $isChef): bool
+    {
+        if ($isAdmin) {
+            return !$leave->isRejected() && !$leave->isCancelled();
+        }
+        if ($isRh) {
+            return $leave->isPending() || $leave->isValidatedByChef() || $leave->isApproved();
+        }
+        if ($isChef && $this->isSameService($leave, $user)) {
+            return $leave->isPending() || $leave->isValidatedByChef();
+        }
+        // Propriétaire : seulement PENDING
+        return $this->isOwner($leave, $user) && $leave->isPending();
+    }
+
+    private function canApprove(LeaveRequest $leave, bool $isRh, bool $isAdmin): bool
+    {
+        if ($isAdmin) {
+            // Admin peut approuver depuis PENDING ou VALIDATED_CHEF
+            return $leave->isPending() || $leave->isValidatedByChef();
+        }
+        if ($isRh) {
+            // RH approuve uniquement depuis VALIDATED_CHEF
+            return $leave->isValidatedByChef();
+        }
+        return false;
+    }
+
+    private function canReject(LeaveRequest $leave, UserInterface $user, bool $isRh, bool $isAdmin, bool $isChef): bool
+    {
+        if ($isAdmin) {
+            return $leave->isPending() || $leave->isValidatedByChef();
+        }
+        if ($isRh) {
+            return $leave->isPending() || $leave->isValidatedByChef();
+        }
+        if ($isChef && $this->isSameService($leave, $user)) {
+            // Chef peut rejeter uniquement depuis PENDING
+            return $leave->isPending();
+        }
+        return false;
+    }
+
+    private function canValidateChef(LeaveRequest $leave, UserInterface $user, bool $isAdmin, bool $isChef): bool
+    {
+        if ($isAdmin) {
+            return $leave->isPending();
+        }
+        if ($isChef && $this->isSameService($leave, $user)) {
+            return $leave->isPending();
+        }
+        return false;
+    }
+
+    private function isOwner(LeaveRequest $leave, UserInterface $user): bool
+    {
+        return $user instanceof User && $leave->getUserId() === $user->getId();
+    }
+
+    private function isSameService(LeaveRequest $leave, UserInterface $chef): bool
+    {
+        if (!$chef instanceof User) {
+            return false;
+        }
+
+        $chefServices = $chef->getServiceNumbers();
+        if (empty($chefServices)) {
+            return false;
+        }
+
+        $agent = $this->em->getRepository(User::class)->find($leave->getUserId());
+
+        if (!$agent instanceof User) {
+            return false;
+        }
+
+        $agentServices = $agent->getServiceNumbers();
+        if (empty($agentServices)) {
+            return false;
+        }
+
+        return count(array_intersect($chefServices, $agentServices)) > 0;
     }
 }

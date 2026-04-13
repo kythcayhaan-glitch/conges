@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #212529; }
+
+        .header { border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 16px; }
+        .header h1 { font-size: 16px; color: #0d6efd; }
+        .header .meta { font-size: 10px; color: #6c757d; margin-top: 4px; }
+
+        .balances { display: table; width: 100%; margin-bottom: 16px; border-collapse: collapse; }
+        .balance-cell { display: table-cell; width: 33%; padding: 8px 12px; border: 1px solid #dee2e6; background: #f8f9fa; }
+        .balance-cell .label { font-size: 9px; color: #6c757d; text-transform: uppercase; letter-spacing: .04em; }
+        .balance-cell .value { font-size: 18px; font-weight: bold; margin-top: 2px; }
+        .value-primary { color: #0d6efd; }
+        .value-cyan    { color: #0dcaf0; }
+        .value-orange  { color: #fd7e14; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        thead th { background: #0d6efd; color: #fff; padding: 6px 8px; font-size: 10px; text-align: left; }
+        tbody tr:nth-child(even) { background: #f8f9fa; }
+        tbody td { padding: 5px 8px; border-bottom: 1px solid #dee2e6; vertical-align: middle; }
+
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; }
+        .badge-warning  { background: #ffc107; color: #212529; }
+        .badge-info     { background: #0dcaf0; color: #212529; }
+        .badge-success  { background: #198754; color: #fff; }
+        .badge-danger   { background: #dc3545; color: #fff; }
+        .badge-secondary{ background: #6c757d; color: #fff; }
+
+        .footer { margin-top: 16px; font-size: 9px; color: #6c757d; text-align: right; border-top: 1px solid #dee2e6; padding-top: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>{{ is_rh ? 'Toutes les demandes' : 'Mes demandes' }} — {{ leave_type.label() }}</h1>
+    <div class="meta">
+        Édité le {{ "now"|date("d/m/Y à H:i") }}
+        {% if current_user %} &nbsp;·&nbsp; {{ current_user.nomComplet ?? current_user.username }}{% endif %}
+    </div>
+</div>
+
+{% if current_user %}
+<div class="balances">
+    <div class="balance-cell">
+        <div class="label">Solde congés</div>
+        <div class="value value-primary">{{ current_user.leaveBalance.value|round(2) }} h</div>
+    </div>
+    <div class="balance-cell">
+        <div class="label">Solde RTT</div>
+        <div class="value value-cyan">{{ current_user.rttBalance.value|round(1) }} j</div>
+    </div>
+    <div class="balance-cell">
+        <div class="label">Solde heures sup.</div>
+        <div class="value value-orange">{{ current_user.heureSupBalance.value|round(2) }} h</div>
+    </div>
+</div>
+{% endif %}
+
+<table>
+    <thead>
+        <tr>
+            {% if is_rh %}<th>Agent</th>{% endif %}
+            <th>Type</th>
+            <th>Début</th>
+            <th>Fin</th>
+            <th>Durée</th>
+            <th>Motif</th>
+            <th>Statut</th>
+            <th>Soumis le</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for leave in leaves %}
+        <tr>
+            {% if is_rh %}<td>{{ agent_names[leave.userId] ?? '—' }}</td>{% endif %}
+            <td>{{ leave.type.label() }}</td>
+            <td>{{ leave.dateDebutFormatted|date('d/m/Y') }}</td>
+            <td>{{ leave.dateFinFormatted|date('d/m/Y') }}</td>
+            <td>
+                {% if leave.type.value == 'RTT' %}
+                    {{ leave.heuresValue|round(0) }} j
+                {% else %}
+                    {{ leave.heuresValue|round(2) }} h
+                {% endif %}
+            </td>
+            <td>{{ leave.motifValue|default('—')|slice(0, 40) }}{% if leave.motifValue|length > 40 %}…{% endif %}</td>
+            <td>
+                {% set badgeClass = {
+                    'PENDING':        'badge-warning',
+                    'VALIDATED_CHEF': 'badge-info',
+                    'APPROVED':       'badge-success',
+                    'REJECTED':       'badge-danger',
+                    'CANCELLED':      'badge-secondary'
+                } %}
+                <span class="badge {{ badgeClass[leave.statutValue] ?? 'badge-secondary' }}">
+                    {{ leave.statutLabel }}
+                </span>
+            </td>
+            <td>{{ leave.createdAt|date('d/m/Y') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="{{ is_rh ? 8 : 7 }}" style="text-align:center;color:#6c757d;padding:12px">Aucune demande.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="footer">{{ leaves|length }} demande(s) — Gestion des Congés</div>
+
+</body>
+</html>
