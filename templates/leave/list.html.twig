@@ -157,7 +157,7 @@
                         <option value="">— Tout mon service —</option>
                         {% endif %}
                         {% for u in print_users %}
-                        <option value="{{ u.id }}">{{ u.nomComplet ?? u.username }}{% if u.serviceNumber %} (svc {{ u.serviceNumber }}){% endif %}</option>
+                        <option value="{{ u.id }}">{{ u.nomComplet ?? u.username }}{% if u.serviceNumbers is not empty %} (svc {{ u.serviceNumbers|join(', ') }}){% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>

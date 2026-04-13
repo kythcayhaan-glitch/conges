@@ -74,8 +74,10 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle me-1"></i>{{ app.user.prenom }} {{ app.user.nom }}
-                        {% if app.user.serviceNumber %}
-                            <span class="badge bg-secondary font-monospace ms-1">{{ app.user.serviceNumber }}</span>
+                        {% if app.user.serviceNumbers is not empty %}
+                            {% for sn in app.user.serviceNumbers %}
+                                <span class="badge bg-secondary font-monospace ms-1">{{ sn }}</span>
+                            {% endfor %}
                         {% endif %}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">

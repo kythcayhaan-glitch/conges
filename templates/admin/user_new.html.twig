@@ -85,12 +85,12 @@
                 </div>
             </div>
 
-            <div class="mb-3" style="max-width:160px">
-                <label for="serviceNumber" class="form-label fw-semibold">N° de service</label>
-                <input type="text" id="serviceNumber" name="serviceNumber" class="form-control font-monospace"
-                       value="{{ form_data.serviceNumber ?? '' }}"
-                       pattern="[0-9]{1,2}" maxlength="2" placeholder="ex : 03">
-                <div class="form-text">2 chiffres, ex : 01 à 99.</div>
+            <div class="mb-3" style="max-width:260px">
+                <label for="serviceNumbers" class="form-label fw-semibold">N° de service(s)</label>
+                <input type="text" id="serviceNumbers" name="serviceNumbers" class="form-control font-monospace"
+                       value="{{ form_data.serviceNumbers ?? '' }}"
+                       placeholder="ex : 03, 11">
+                <div class="form-text">Un ou plusieurs numéros séparés par des virgules (ex : 03, 11).</div>
             </div>
 
             <div class="row g-3 mb-4">

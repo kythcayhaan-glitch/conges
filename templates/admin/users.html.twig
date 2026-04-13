@@ -28,8 +28,10 @@
                 {% set is_self = user.username == app.user.userIdentifier %}
                 <tr class="{{ is_self ? 'table-secondary' : '' }}">
                     <td>
-                        {% if user.serviceNumber %}
-                            <span class="badge bg-secondary font-monospace">{{ user.serviceNumber }}</span>
+                        {% if user.serviceNumbers is not empty %}
+                            {% for sn in user.serviceNumbers %}
+                                <span class="badge bg-secondary font-monospace">{{ sn }}</span>
+                            {% endfor %}
                         {% else %}
                             <span class="text-muted">—</span>
                         {% endif %}
