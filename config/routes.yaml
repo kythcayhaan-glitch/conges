@@ -1,0 +1,8 @@
+# config/routes.yaml
+
+# Autodécouverte des routes via les attributs PHP dans les controllers
+controllers:
+    resource:
+        path: ../src/
+        namespace: App
+    type: attribute

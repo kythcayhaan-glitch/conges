@@ -1,0 +1,9 @@
+{% set classes = {
+    'PENDING':   'bg-warning text-dark',
+    'APPROVED':  'bg-success',
+    'REJECTED':  'bg-danger',
+    'CANCELLED': 'bg-secondary'
+} %}
+<span class="badge {{ classes[leave.statutValue] ?? 'bg-light text-dark' }}">
+    {{ leave.statutLabel }}
+</span>

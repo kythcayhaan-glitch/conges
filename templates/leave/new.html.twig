@@ -1,0 +1,272 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Nouvelle demande — {{ leave_type.label() }}{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h1 class="h3 mb-0">Nouvelle demande — {{ leave_type.label() }}</h1>
+</div>
+
+<div class="card shadow-sm" style="max-width:600px">
+    <div class="card-body">
+        <form method="post" action="{{ path('app_leave_new') }}" id="leaveForm">
+            <input type="hidden" name="_token" value="{{ csrf_token('leave_new') }}">
+            <input type="hidden" name="leaveType" value="{{ leave_type.value }}">
+
+            {% if is_rh %}
+            <div class="mb-3">
+                <label for="agentId" class="form-label fw-semibold">Agent concerné <span class="text-danger">*</span></label>
+                <select id="agentId" name="agentId" class="form-select" required>
+                    <option value="">— Sélectionner un utilisateur —</option>
+                    {% for u in users %}
+                        <option value="{{ u.id }}"
+                            {{ (form_data.agentId ?? '') == u.id ? 'selected' : '' }}>
+                            {{ u.nomComplet ?? u.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {# Date #}
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label for="dateDebut" class="form-label fw-semibold">Date de début <span class="text-danger">*</span></label>
+                    <input type="date" id="dateDebut" name="dateDebut" class="form-control"
+                           value="{{ form_data.dateDebut ?? '' }}" required onchange="onDateChange()">
+                </div>
+                <div class="col-6">
+                    <label for="dateFin" class="form-label fw-semibold">Date de fin <span class="text-danger">*</span></label>
+                    <input type="date" id="dateFin" name="dateFin" class="form-control"
+                           value="{{ form_data.dateFin ?? '' }}" required onchange="calculateHours()">
+                </div>
+            </div>
+
+            {% if leave_type.value != 'RTT' %}
+            {# Mode créneaux #}
+            <div class="mb-3 p-3 border rounded bg-light" id="modeCreneau">
+                <div class="fw-semibold mb-2 small text-uppercase text-muted">Créneaux</div>
+                <div class="d-flex gap-4 flex-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="journeeEntiere" name="journeeEntiere" value="1"
+                               onchange="onCreneauChange()">
+                        <label class="form-check-label" for="journeeEntiere">
+                            Journée entière <span class="text-muted" id="journeeLabel">(7,75 h)</span>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="matin" name="matin" value="1"
+                               onchange="onCreneauChange()">
+                        <label class="form-check-label" for="matin">Matin <span class="text-muted">(4 h)</span></label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="apresMidi" name="apresMidi" value="1"
+                               onchange="onCreneauChange()">
+                        <label class="form-check-label" for="apresMidi">
+                            Après-midi <span class="text-muted" id="apresMidiLabel">(3,75 h)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            {# Mode heures #}
+            <div id="modeHeures">
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label for="heureDebut" class="form-label fw-semibold">Heure de début</label>
+                        <input type="time" id="heureDebut" name="heureDebut" class="form-control"
+                               value="{{ form_data.heureDebut ?? '' }}" onchange="calculateHours()">
+                    </div>
+                    <div class="col-6">
+                        <label for="heureFin" class="form-label fw-semibold">Heure de fin</label>
+                        <input type="time" id="heureFin" name="heureFin" class="form-control"
+                               value="{{ form_data.heureFin ?? '' }}" onchange="calculateHours()">
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Durée calculée #}
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Durée calculée</label>
+                <div class="input-group" style="max-width:200px">
+                    <input type="text" id="heuresDisplay" class="form-control fw-bold text-primary"
+                           readonly placeholder="—" style="background:#f8f9fa">
+                    <span class="input-group-text">{{ leave_type.value == 'RTT' ? 'jour(s)' : 'heures' }}</span>
+                </div>
+                <div id="heuresError" class="text-danger small mt-1" style="display:none">
+                    L'heure de fin doit être postérieure à l'heure de début.
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label for="motif" class="form-label fw-semibold">Motif</label>
+                <textarea id="motif" name="motif" class="form-control" rows="3"
+                          maxlength="1000">{{ form_data.motif ?? '' }}</textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                    <i class="bi bi-send me-1"></i>Soumettre la demande
+                </button>
+                <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-outline-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const isRTT = {{ leave_type.value == 'RTT' ? 'true' : 'false' }};
+
+function computeWorkingDays(dateDebut, dateFin) {
+    if (!dateDebut || !dateFin) return 0;
+    let current = new Date(dateDebut + 'T12:00:00');
+    const end   = new Date(dateFin   + 'T12:00:00');
+    if (end < current) return 0;
+    let days = 0;
+    while (current <= end) {
+        const dow = current.getDay(); // 0=dim, 6=sam
+        if (dow !== 0 && dow !== 6) days++;
+        current.setDate(current.getDate() + 1);
+    }
+    return days;
+}
+
+function computeWorkingHours(dateDebut, heureDebut, dateFin, heureFin) {
+    function ds(d) {
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
+    const start = new Date(dateDebut + 'T' + heureDebut);
+    const end   = new Date(dateFin   + 'T' + heureFin);
+    if (end <= start) return -1;
+
+    let total   = 0;
+    let current = new Date(dateDebut + 'T12:00:00');
+
+    while (ds(current) <= dateFin) {
+        const d        = ds(current);
+        const isMonday = current.getDay() === 1;
+        const lunchEnd = isMonday ? '13:30' : '13:45';
+
+        const morningStart   = new Date(d + 'T08:00');
+        const morningEnd     = new Date(d + 'T12:00');
+        const afternoonStart = new Date(d + 'T' + lunchEnd);
+        const afternoonEnd   = new Date(d + 'T17:30');
+
+        const dayStart = d === dateDebut ? start : morningStart;
+        const dayEnd   = d === dateFin   ? end   : afternoonEnd;
+
+        const mS = dayStart > morningStart ? dayStart : morningStart;
+        const mE = dayEnd   < morningEnd   ? dayEnd   : morningEnd;
+        if (mE > mS) total += (mE - mS) / 3600000;
+
+        const aS = dayStart > afternoonStart ? dayStart : afternoonStart;
+        const aE = dayEnd   < afternoonEnd   ? dayEnd   : afternoonEnd;
+        if (aE > aS) total += (aE - aS) / 3600000;
+
+        current.setDate(current.getDate() + 1);
+    }
+    return Math.round(total * 100) / 100;
+}
+
+function isMonday(dateStr) {
+    if (!dateStr) return false;
+    return new Date(dateStr + 'T12:00:00').getDay() === 1;
+}
+
+function onDateChange() {
+    const dateDebut = document.getElementById('dateDebut').value;
+    const monday = isMonday(dateDebut);
+    document.getElementById('apresMidiLabel').textContent = monday ? '(4 h)' : '(3,75 h)';
+    document.getElementById('journeeLabel').textContent   = monday ? '(8 h)' : '(7,75 h)';
+    onCreneauChange();
+    calculateHours();
+}
+
+function onCreneauChange() {
+    const journeeEntiere = document.getElementById('journeeEntiere').checked;
+    const matin          = document.getElementById('matin').checked;
+    const apresMidi      = document.getElementById('apresMidi').checked;
+    const modeH          = document.getElementById('modeHeures');
+
+    // Journée entière désactive matin/apresMidi
+    document.getElementById('matin').disabled     = journeeEntiere;
+    document.getElementById('apresMidi').disabled = journeeEntiere;
+    // Matin/apresMidi désactive journée entière
+    document.getElementById('journeeEntiere').disabled = matin || apresMidi;
+
+    if (journeeEntiere || matin || apresMidi) {
+        modeH.style.opacity = '0.4';
+        modeH.style.pointerEvents = 'none';
+        document.getElementById('heureDebut').value = '';
+        document.getElementById('heureFin').value = '';
+    } else {
+        modeH.style.opacity = '1';
+        modeH.style.pointerEvents = '';
+    }
+    calculateHours();
+}
+
+function calculateHours() {
+    const dateDebut = document.getElementById('dateDebut').value;
+    const dateFin   = document.getElementById('dateFin').value;
+    const display   = document.getElementById('heuresDisplay');
+    const errDiv    = document.getElementById('heuresError');
+    const btn       = document.getElementById('submitBtn');
+
+    errDiv.style.display = 'none';
+
+    if (isRTT) {
+        if (!dateDebut || !dateFin) { display.value = ''; btn.disabled = true; return; }
+        const days = computeWorkingDays(dateDebut, dateFin);
+        if (days <= 0) {
+            display.value = ''; btn.disabled = true; return;
+        }
+        display.value = days;
+        btn.disabled = false;
+        return;
+    }
+
+    const journeeEntiere = document.getElementById('journeeEntiere').checked;
+    const matin          = document.getElementById('matin').checked;
+    const apresMidi      = document.getElementById('apresMidi').checked;
+
+    if (journeeEntiere || matin || apresMidi) {
+        if (!dateDebut) { display.value = ''; btn.disabled = true; return; }
+        let hours = 0;
+        if (journeeEntiere) {
+            hours = isMonday(dateDebut) ? 8 : 7.75;
+        } else {
+            if (matin)     hours += 4;
+            if (apresMidi) hours += isMonday(dateDebut) ? 4 : 3.75;
+        }
+        display.value = parseFloat(hours.toFixed(2));
+        btn.disabled = false;
+        return;
+    }
+
+    const heureDebut = document.getElementById('heureDebut').value;
+    const heureFin   = document.getElementById('heureFin').value;
+
+    if (!dateDebut || !dateFin || !heureDebut || !heureFin) {
+        display.value = ''; btn.disabled = true; return;
+    }
+
+    const hours = computeWorkingHours(dateDebut, heureDebut, dateFin, heureFin);
+
+    if (hours <= 0) {
+        display.value = ''; errDiv.style.display = 'block'; btn.disabled = true;
+    } else {
+        display.value = parseFloat(hours.toFixed(2));
+        btn.disabled = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => { if (!isRTT) onDateChange(); calculateHours(); });
+</script>
+{% endblock %}

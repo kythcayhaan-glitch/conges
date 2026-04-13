@@ -1,0 +1,85 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Demandes de congé{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="bi bi-{{ leave_type.value == 'RTT' ? 'clock' : 'calendar3' }} me-2"></i>
+        {% if is_granted('ROLE_RH') %}Toutes les demandes — {{ leave_type.label() }}{% else %}Mes demandes — {{ leave_type.label() }}{% endif %}
+    </h1>
+    <a href="{{ path('app_leave_new', {type: leave_type.value}) }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Nouvelle demande
+    </a>
+</div>
+
+{% if is_granted('ROLE_RH') %}
+<div class="mb-3">
+    <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-sm {{ app.request.query.get('statut') is null ? 'btn-secondary' : 'btn-outline-secondary' }} me-1">Toutes</a>
+    <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'PENDING'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'PENDING' ? 'btn-warning' : 'btn-outline-warning' }}">En attente</a>
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+    {% if leaves is empty %}
+        <div class="card-body text-muted text-center py-5">Aucune demande.</div>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        {% if is_granted('ROLE_RH') %}<th>Agent</th>{% endif %}
+                        <th>Période</th>
+                        <th>Motif</th>
+                        <th>Statut</th>
+                        <th>Soumis le</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in leaves %}
+                    <tr>
+                        {% if is_granted('ROLE_RH') %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
+                        <td class="text-nowrap">
+                            {{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}
+                            {% if leave.type.value == 'RTT' %}
+                            <br><small class="text-muted">{{ leave.heuresValue|round(0) }} jour{{ leave.heuresValue > 1 ? 's' : '' }}</small>
+                            {% else %}
+                                {% if leave.journeeEntiere %}
+                                <br><small class="text-muted">Journée entière</small>
+                                {% elseif leave.matin or leave.apresMidi %}
+                                <br><small class="text-muted">
+                                    {%- if leave.matin %}Matin{% endif %}
+                                    {%- if leave.matin and leave.apresMidi %} + {% endif %}
+                                    {%- if leave.apresMidi %}Après-midi{% endif %}
+                                </small>
+                                {% elseif leave.heureDebut or leave.heureFin %}
+                                <br><small class="text-muted">de {{ leave.heureDebut ?? '?' }} à {{ leave.heureFin ?? '?' }}</small>
+                                {% endif %}
+                                <br><small class="text-muted">{{ leave.heuresValue|round(2) }} h</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-truncate" style="max-width:200px" title="{{ leave.motifValue }}">{{ leave.motifValue }}</td>
+                        <td>
+                            {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
+                            {% if leave.statutValue in ['APPROVED', 'REJECTED'] %}
+                                {% set log = last_logs[leave.id] ?? null %}
+                                {% if log and log.auteurId %}
+                                    <br><small class="text-muted">par {{ user_emails[log.auteurId] ?? log.auteurId }}</small>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">{{ leave.createdAt|date('d/m/Y') }}</td>
+                        <td>
+                            <a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

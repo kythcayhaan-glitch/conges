@@ -1,0 +1,42 @@
+# config/packages/messenger.yaml
+
+framework:
+    messenger:
+        default_bus: command.bus
+
+        # Bus de commandes : synchrone, fire-and-forget
+        buses:
+            command.bus:
+                middleware:
+                    - validation
+                default_middleware: allow_no_handlers
+
+            query.bus:
+                middleware:
+                    - validation
+                default_middleware: allow_no_handlers
+
+        transports:
+            sync: 'sync://'
+
+        routing:
+            # === Commandes Leave ===
+            App\Leave\Application\Command\EditLeave\EditLeaveCommand:
+                senders: [sync]
+                bus: command.bus
+
+            App\Leave\Application\Command\SubmitLeave\SubmitLeaveCommand:
+                senders: [sync]
+                bus: command.bus
+
+            App\Leave\Application\Command\ApproveLeave\ApproveLeaveCommand:
+                senders: [sync]
+                bus: command.bus
+
+            App\Leave\Application\Command\RejectLeave\RejectLeaveCommand:
+                senders: [sync]
+                bus: command.bus
+
+            App\Leave\Application\Command\CancelLeave\CancelLeaveCommand:
+                senders: [sync]
+                bus: command.bus

@@ -1,0 +1,55 @@
+# config/services.yaml
+
+parameters:
+    app.mailer_from: '%env(MAILER_FROM)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # =========================================================================
+    # Bus CQRS — injection des bus Messenger nommés
+    # =========================================================================
+
+    App\Shared\Domain\Bus\CommandBusInterface:
+        class: App\Shared\Infrastructure\Bus\MessengerCommandBus
+        arguments:
+            $commandBus: '@command.bus'
+
+    App\Shared\Domain\Bus\QueryBusInterface:
+        class: App\Shared\Infrastructure\Bus\MessengerQueryBus
+        arguments:
+            $queryBus: '@query.bus'
+
+    # =========================================================================
+    # Repositories — binding interface → implémentation Doctrine
+    # =========================================================================
+
+    App\Leave\Domain\Repository\LeaveRequestRepositoryInterface:
+        class: App\Leave\Infrastructure\Persistence\DoctrineLeaveRequestRepository
+
+    # =========================================================================
+    # Messenger Bus — les bus déclarés dans messenger.yaml sont déjà des services
+    # avec leur nom exact (command.bus, query.bus). On les expose public pour l'injection.
+    # =========================================================================
+
+    App\Shared\Infrastructure\Bus\MessengerCommandBus:
+        arguments:
+            $commandBus: '@command.bus'
+
+    App\Shared\Infrastructure\Bus\MessengerQueryBus:
+        arguments:
+            $queryBus: '@query.bus'
+
+    App\Leave\Infrastructure\Notification\LeaveMailNotifier:
+        arguments:
+            $fromAddress: '%app.mailer_from%'

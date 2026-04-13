@@ -1,0 +1,225 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Tableau de bord{% endblock %}
+
+{% block body %}
+{% set last_logs = last_logs ?? {} %}
+{% set author_names = author_names ?? {} %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Tableau de bord</h1>
+</div>
+
+{% if is_granted('ROLE_RH') %}
+    {# Vue RH #}
+    {% if current_user %}
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-1">Mon solde de congés</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <span class="display-6 fw-bold text-primary">{{ current_user.leaveBalance.value|round(2) }}</span>
+                        <span class="text-muted mb-1">h</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-1">Mon solde RTT</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <span class="display-6 fw-bold text-cyan">{{ current_user.rttBalance.value|round(1) }}</span>
+                        <span class="text-muted mb-1">jour(s)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-1">Mon solde heures sup.</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <span class="display-6 fw-bold text-orange">{{ current_user.heureSupBalance.value|round(2) }}</span>
+                        <span class="text-muted mb-1">h</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i>Demandes en attente</span>
+            <span class="badge bg-warning text-dark">{{ pending_leaves|length }}</span>
+        </div>
+        {% if pending_leaves is empty %}
+            <div class="card-body text-muted text-center py-4">
+                <i class="bi bi-check-circle fs-3 text-success d-block mb-2"></i>
+                Aucune demande en attente.
+            </div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Agent</th>
+                            <th>Type</th>
+                            <th>Période</th>
+                            <th>Durée</th>
+                            <th>Soumis le</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in pending_leaves %}
+                        <tr>
+                            <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
+                            <td>{{ leave.type.label() }}</td>
+                            <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
+                            <td>
+                                {% if leave.type.value == 'RTT' %}
+                                    {{ leave.heuresValue|round(0) }} jour{{ leave.heuresValue > 1 ? 's' : '' }}
+                                {% else %}
+                                    {{ leave.heuresValue|round(2) }} h
+                                {% endif %}
+                            </td>
+                            <td>{{ leave.createdAt|date('d/m/Y') }}</td>
+                            <td>
+                                <a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Traiter
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+        <a href="{{ path('app_leave_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-list-ul me-1"></i>Toutes les demandes
+        </a>
+        <a href="{{ path('app_agents_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-people me-1"></i>Gérer les utilisateurs
+        </a>
+    </div>
+
+{% else %}
+    {# Vue Agent #}
+    {% if current_user %}
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-1">Solde de congés</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <span class="display-6 fw-bold text-primary">{{ current_user.leaveBalance.value|round(2) }}</span>
+                        <span class="text-muted mb-1">h</span>
+                    </div>
+                    <div class="progress mt-2" style="height:6px">
+                        {% set raw_pct = (current_user.leaveBalance.value / 200 * 100)|round %}
+                        {% set pct = raw_pct < 0 ? 0 : (raw_pct > 100 ? 100 : raw_pct) %}
+                        <div class="progress-bar" style="width:{{ pct }}%"></div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ path('app_leave_new', {type: 'CONGE'}) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Demander
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-1">Solde RTT</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <span class="display-6 fw-bold text-cyan">{{ current_user.rttBalance.value|round(1) }}</span>
+                        <span class="text-muted mb-1">jour(s)</span>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ path('app_leave_new', {type: 'RTT'}) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Demander
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle text-muted mb-1">Solde heures sup.</h6>
+                    <div class="d-flex align-items-end gap-2">
+                        <span class="display-6 fw-bold text-orange">{{ current_user.heureSupBalance.value|round(2) }}</span>
+                        <span class="text-muted mb-1">h</span>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{{ path('app_leave_new', {type: 'HEURE_SUP'}) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Demander
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-calendar3 me-1"></i>Mes dernières demandes
+        </div>
+        {% if my_leaves is empty %}
+            <div class="card-body text-muted text-center py-4">Aucune demande pour l'instant.</div>
+        {% else %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Type</th>
+                            <th>Période</th>
+                            <th>Durée</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in my_leaves %}
+                        <tr>
+                            <td>{{ leave.type.label() }}</td>
+                            <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
+                            <td>
+                                {% if leave.type.value == 'RTT' %}
+                                    {{ leave.heuresValue|round(0) }} jour{{ leave.heuresValue > 1 ? 's' : '' }}
+                                {% else %}
+                                    {{ leave.heuresValue|round(2) }} h
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
+                                {% if leave.statutValue in ['APPROVED', 'REJECTED'] %}
+                                    {% set log = last_logs[leave.id] ?? null %}
+                                    {% if log and log.auteurId %}
+                                        <br><small class="text-muted">par {{ author_names[log.auteurId] ?? log.auteurId }}</small>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+        <div class="card-footer">
+            <a href="{{ path('app_leave_list') }}" class="btn btn-sm btn-outline-primary">Voir toutes mes demandes</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,191 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Demande de congé{% endblock %}
+
+{% block body %}
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="{{ path('app_leave_list') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h1 class="h3 mb-0">Demande de congé</h1>
+        {% if leave_user %}
+        <div class="text-muted mt-1"><i class="bi bi-person me-1"></i>{{ leave_user.nomComplet ?? leave_user.username }}</div>
+        {% endif %}
+    </div>
+    {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold"><i class="bi bi-info-circle me-1"></i>Détails</div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Début</span>
+                    <span>{{ leave.dateDebutFormatted|date('d/m/Y') }}{% if leave.heureDebut %} à {{ leave.heureDebut }}{% endif %}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Fin</span>
+                    <span>{{ leave.dateFinFormatted|date('d/m/Y') }}{% if leave.heureFin %} à {{ leave.heureFin }}{% endif %}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Durée</span>
+                    <strong>
+                        {% if leave.type.value == 'RTT' %}
+                            {{ leave.heuresValue|round(0) }} jour{{ leave.heuresValue > 1 ? 's' : '' }}
+                        {% else %}
+                            {{ leave.heuresValue|round(2) }} h
+                        {% endif %}
+                    </strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span class="text-muted">Soumis le</span>
+                    <span>{{ leave.createdAt|date('d/m/Y à H:i') }}</span>
+                </li>
+                {% if is_granted('ROLE_RH') and leave_user %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Agent</span>
+                    <a href="{{ path('app_agents_show', {id: leave.userId}) }}" class="text-decoration-none">
+                        {{ leave_user.nomComplet ?? leave_user.username }}
+                    </a>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Solde {{ leave.type.label() }} restant</span>
+                    {% set balance = leave.type.value == 'RTT' ? leave_user.rttBalance.value : leave_user.leaveBalance.value %}
+                    <span class="fw-bold fs-5 {{ balance < leave.heuresValue ? 'text-danger' : 'text-success' }}">
+                        {% if leave.type.value == 'RTT' %}
+                            {{ balance|round(0) }} jour{{ balance > 1 ? 's' : '' }}
+                        {% else %}
+                            {{ balance|round(2) }} h
+                        {% endif %}
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
+            {% if leave.motifValue %}
+            <div class="card-body border-top">
+                <p class="text-muted small mb-1">Motif</p>
+                <p class="mb-0">{{ leave.motifValue }}</p>
+            </div>
+            {% endif %}
+            {% if rejection_log is defined and rejection_log and rejection_log.commentaire %}
+            <div class="card-body border-top bg-danger-subtle">
+                <p class="text-danger small mb-1 fw-semibold"><i class="bi bi-x-circle me-1"></i>Motif du rejet</p>
+                <p class="mb-0">{{ rejection_log.commentaire }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Actions RH #}
+        {% if is_granted('ROLE_RH') and leave.pending %}
+        <div class="card shadow-sm mt-3">
+            <div class="card-header fw-semibold"><i class="bi bi-check2-square me-1"></i>Traitement</div>
+            <div class="card-body d-flex gap-2 flex-wrap">
+                <form method="post" action="{{ path('app_leave_approve', {id: leave.id}) }}" class="d-inline">
+                    <input type="hidden" name="_token" value="{{ csrf_token('leave_approve_' ~ leave.id) }}">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-lg me-1"></i>Approuver
+                    </button>
+                </form>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="bi bi-x-lg me-1"></i>Rejeter
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Modification #}
+        {% if leave.pending and (is_granted('ROLE_RH') or (app.user and app.user.id == leave.userId)) %}
+        <div class="mt-2">
+            <a href="{{ path('app_leave_edit', {id: leave.id}) }}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Modifier
+            </a>
+        </div>
+        {% endif %}
+
+        {# Annulation #}
+        {% if leave.pending and (
+            is_granted('ROLE_RH') or
+            (app.user and app.user.id == leave.userId)
+        ) %}
+        <div class="mt-2">
+            <form method="post" action="{{ path('app_leave_cancel', {id: leave.id}) }}"
+                  onsubmit="return confirm('Confirmer l\'annulation ?')">
+                <input type="hidden" name="_token" value="{{ csrf_token('leave_cancel_' ~ leave.id) }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-slash-circle me-1"></i>Annuler la demande
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        {# Suppression (RH seulement) #}
+        {% if is_granted('ROLE_RH') %}
+        <div class="mt-2">
+            <form method="post" action="{{ path('app_leave_delete', {id: leave.id}) }}"
+                  onsubmit="return confirm('Supprimer définitivement cette demande ? Cette action est irréversible.')">
+                <input type="hidden" name="_token" value="{{ csrf_token('leave_delete_' ~ leave.id) }}">
+                <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="bi bi-trash me-1"></i>Supprimer la demande
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if is_granted('ROLE_RH') and audit_logs is not empty %}
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1"></i>Historique</div>
+            <ul class="list-group list-group-flush">
+                {% for log in audit_logs %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="fw-semibold">
+                                {% if log.ancienStatut %}
+                                    {{ log.ancienStatut.label() }} → {{ log.nouveauStatut.label() }}
+                                {% else %}
+                                    Soumission ({{ log.nouveauStatut.label() }})
+                                {% endif %}
+                            </span>
+                            {% if log.commentaire %}
+                                <br><small class="text-muted">{{ log.commentaire }}</small>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted text-nowrap ms-2">{{ log.createdAt|date('d/m/Y H:i') }}</small>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# Modal rejet #}
+{% if is_granted('ROLE_RH') and leave.pending %}
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ path('app_leave_reject', {id: leave.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('leave_reject_' ~ leave.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Rejeter la demande</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="commentaire" class="form-label">Motif du rejet</label>
+                    <textarea id="commentaire" name="commentaire" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Confirmer le rejet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
