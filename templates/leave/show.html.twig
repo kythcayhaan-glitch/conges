@@ -52,7 +52,13 @@
                 </li>
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span class="text-muted">Solde {{ leave.type.label() }} restant</span>
-                    {% set balance = leave.type.value == 'RTT' ? leave_user.rttBalance.value : leave_user.leaveBalance.value %}
+                    {% if leave.type.value == 'RTT' %}
+                        {% set balance = leave_user.rttBalance.value %}
+                    {% elseif leave.type.value == 'HEURE_SUP' %}
+                        {% set balance = leave_user.heureSupBalance.value %}
+                    {% else %}
+                        {% set balance = leave_user.leaveBalance.value %}
+                    {% endif %}
                     <span class="fw-bold fs-5 {{ balance < leave.heuresValue ? 'text-danger' : 'text-success' }}">
                         {% if leave.type.value == 'RTT' %}
                             {{ balance|round(0) }} jour{{ balance > 1 ? 's' : '' }}
