@@ -93,6 +93,14 @@ final class UserFixtures extends Fixture
             'balance'  => 208.00,
             'roles'    => ['ROLE_RH'],
         ],
+        [
+            'username' => 'admin',
+            'email'    => 'admin@collectivite.fr',
+            'nom'      => 'Admin',
+            'prenom'   => 'Super',
+            'balance'  => 0.00,
+            'roles'    => ['ROLE_ADMIN'],
+        ],
     ];
 
     public function __construct(
