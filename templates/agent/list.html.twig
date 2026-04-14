@@ -53,7 +53,7 @@
                         '16': 'Population'
                     } %}
                     {% for user in users %}
-                    <tr>
+                    <tr class="clickable-row" data-href="{{ path('app_agents_show', {id: user.id}) }}" style="cursor:pointer">
                         <td data-sort="{{ user.serviceNumbers|join(',') }}">
                             {% if user.serviceNumbers is not empty %}
                                 {% for sn in user.serviceNumbers %}
@@ -69,9 +69,6 @@
                         <td class="text-end fw-semibold text-info">{{ user.rttBalance.value|round(2) }}</td>
                         <td class="text-end fw-semibold text-warning">{{ user.heureSupBalance.value|round(2) }}</td>
                         <td class="text-end text-nowrap">
-                            <a href="{{ path('app_agents_show', {id: user.id}) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i>
-                            </a>
                             <a href="{{ path('app_agents_recap_pdf', {userId: user.id}) }}" class="btn btn-sm btn-outline-secondary" title="Imprimer le solde">
                                 <i class="bi bi-printer me-1"></i>Imprimer le solde
                             </a>
@@ -93,6 +90,13 @@ function filterTable(input, tableId) {
         row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
 }
+
+document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+        if (e.target.closest('a, button')) return;
+        window.location.href = row.dataset.href;
+    });
+});
 
 (function () {
     var table    = document.getElementById('agentTable');

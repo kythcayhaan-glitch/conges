@@ -110,7 +110,6 @@
                         <th>Motif</th>
                         <th>Statut</th>
                         <th>Soumis le</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -148,11 +147,6 @@
                             {% endif %}
                         </td>
                         <td class="text-nowrap">{{ leave.createdAt|date('d/m/Y') }}</td>
-                        <td>
-                            <a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

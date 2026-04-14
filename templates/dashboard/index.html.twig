@@ -80,17 +80,16 @@
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="chefPendingTable">
                     <thead class="table-warning">
-                        <tr><th>Agent</th><th>Type</th><th>Période</th><th>Durée</th><th>Soumis le</th><th></th></tr>
+                        <tr><th>Agent</th><th>Type</th><th>Période</th><th>Durée</th><th>Soumis le</th></tr>
                     </thead>
                     <tbody>
                         {% for leave in pending_leaves %}
-                        <tr>
+                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
                             <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
                             <td>{{ leave.type.label() }}</td>
                             <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
                             <td>{{ leave.type.value == 'RTT' ? (leave.heuresValue == 0.5 ? '½ j' : leave.heuresValue|round(0) ~ ' j') : (leave.heuresValue|round(2) ~ ' h') }}</td>
                             <td>{{ leave.createdAt|date('d/m/Y') }}</td>
-                            <td><a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i> Traiter</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -217,12 +216,11 @@
                             <th>Période</th>
                             <th>Durée</th>
                             <th>Soumis le</th>
-                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for leave in pending_leaves %}
-                        <tr>
+                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
                             <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
                             <td>{{ leave.type.label() }}</td>
                             <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
@@ -234,11 +232,6 @@
                                 {% endif %}
                             </td>
                             <td>{{ leave.createdAt|date('d/m/Y') }}</td>
-                            <td>
-                                <a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-eye"></i> Traiter
-                                </a>
-                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -259,16 +252,15 @@
         <div class="table-responsive">
             <table class="table table-hover mb-0" id="rhValidatedTable">
                 <thead class="table-light">
-                    <tr><th>Agent</th><th>Type</th><th>Période</th><th>Durée</th><th></th></tr>
+                    <tr><th>Agent</th><th>Type</th><th>Période</th><th>Durée</th></tr>
                 </thead>
                 <tbody>
                     {% for leave in validated_chef_leaves %}
-                    <tr>
+                    <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
                         <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
                         <td>{{ leave.type.label() }}</td>
                         <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
                         <td>{{ leave.type.value == 'RTT' ? (leave.heuresValue == 0.5 ? '½ j' : leave.heuresValue|round(0) ~ ' j') : (leave.heuresValue|round(2) ~ ' h') }}</td>
-                        <td><a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Traiter</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -396,12 +388,11 @@
                             <th>Période</th>
                             <th>Durée</th>
                             <th>Statut</th>
-                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for leave in my_leaves %}
-                        <tr>
+                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
                             <td>{{ leave.type.label() }}</td>
                             <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
                             <td>
@@ -419,11 +410,6 @@
                                         <br><small class="text-muted">par {{ author_names[log.auteurId] ?? log.auteurId }}</small>
                                     {% endif %}
                                 {% endif %}
-                            </td>
-                            <td>
-                                <a href="{{ path('app_leave_show', {id: leave.id}) }}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-eye"></i>
-                                </a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -446,5 +432,12 @@ function filterTable(input, tableId) {
         row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
     });
 }
+
+document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+        if (e.target.closest('a, button')) return;
+        window.location.href = row.dataset.href;
+    });
+});
 </script>
 {% endblock %}
