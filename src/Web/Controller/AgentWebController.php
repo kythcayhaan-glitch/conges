@@ -45,6 +45,78 @@ final class AgentWebController extends AbstractController
         return $this->redirectToRoute('app_agents_show', ['id' => $user->getId()]);
     }
 
+    #[Route('/recap-pdf', name: 'recap_pdf', methods: ['GET'])]
+    #[IsGranted('ROLE_CHEF_SERVICE')]
+    public function recapPdf(Request $request): Response
+    {
+        $currentUser = $this->getUser();
+        $isRh        = $this->isGranted('ROLE_RH');
+        $isChef      = $this->isGranted('ROLE_CHEF_SERVICE') && !$isRh;
+        $userId      = $request->query->get('userId');
+
+        if ($isRh) {
+            if ($userId) {
+                $target = $this->em->getRepository(User::class)->find($userId);
+                $agents = $target ? [$target] : [];
+                $title  = $target ? ($target->getNomComplet() ?? $target->getUsername()) : 'Agent inconnu';
+            } else {
+                $agents = $this->em->getRepository(User::class)->findBy([], ['nom' => 'ASC', 'prenom' => 'ASC']);
+                $title  = 'Tous les agents';
+            }
+        } else {
+            if (!$currentUser instanceof User) {
+                throw $this->createAccessDeniedException();
+            }
+            $chefServices  = $currentUser->getServiceNumbers();
+            $allUsers      = $this->em->getRepository(User::class)->findAll();
+            $serviceAgents = array_values(array_filter(
+                $allUsers,
+                fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0
+            ));
+            usort($serviceAgents, fn(User $a, User $b) => strcmp((string)$a->getNom(), (string)$b->getNom()));
+
+            if ($userId) {
+                $target = $this->em->getRepository(User::class)->find($userId);
+                if ($target instanceof User
+                    && count(array_intersect($target->getServiceNumbers(), $chefServices)) > 0
+                ) {
+                    $agents = [$target];
+                    $title  = $target->getNomComplet() ?? $target->getUsername();
+                } else {
+                    $agents = $serviceAgents;
+                    $title  = 'Mon service';
+                }
+            } else {
+                $agents = $serviceAgents;
+                $title  = 'Mon service';
+            }
+        }
+
+        $html = $this->renderView('agent/recap_pdf.html.twig', [
+            'agents'       => $agents,
+            'title'        => $title,
+            'current_user' => $currentUser instanceof User ? $currentUser : null,
+            'is_rh'        => $isRh,
+        ]);
+
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->loadHtml($html);
+        $dompdf->render();
+
+        $slug     = preg_replace('/[^a-z0-9_]/i', '_', iconv('UTF-8', 'ASCII//TRANSLIT', $title) ?: 'recap');
+        $filename = sprintf('recap_soldes_%s_%s.pdf', strtolower($slug), date('d-m-Y'));
+
+        return new Response(
+            $dompdf->output(),
+            200,
+            [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            ]
+        );
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[IsGranted('ROLE_AGENT')]
     public function show(string $id): Response

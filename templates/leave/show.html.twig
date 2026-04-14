@@ -13,7 +13,12 @@
         <div class="text-muted mt-1"><i class="bi bi-person me-1"></i>{{ leave_user.nomComplet ?? leave_user.username }}</div>
         {% endif %}
     </div>
-    {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
+    <div>
+        {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
+        {% if validated_by_chef_name is defined and validated_by_chef_name %}
+            <small class="text-muted d-block mt-1">par {{ validated_by_chef_name }}</small>
+        {% endif %}
+    </div>
 </div>
 
 <div class="row g-4">

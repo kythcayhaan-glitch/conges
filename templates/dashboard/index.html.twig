@@ -80,11 +80,47 @@
             </div>
         {% endif %}
     </div>
-    <div class="mt-3">
+    <div class="mt-3 d-flex gap-2 flex-wrap">
         <a href="{{ path('app_leave_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-list-ul me-1"></i>Toutes les demandes de mon service
         </a>
+        {% if recap_agents is defined and recap_agents is not empty %}
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#recapModal">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i>Récapitulatif des soldes
+        </button>
+        {% endif %}
     </div>
+
+    {% if recap_agents is defined and recap_agents is not empty %}
+    <div class="modal fade" id="recapModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-bar-graph me-1"></i>Récapitulatif des soldes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="recapAgent" class="form-label fw-semibold">Agent</label>
+                        <select id="recapAgent" class="form-select">
+                            <option value="">— Tout mon service —</option>
+                            {% for agent in recap_agents %}
+                            <option value="{{ agent.id }}">{{ agent.nomComplet ?? agent.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary"
+                            onclick="window.location.href='{{ path('app_agents_recap_pdf') }}' + (document.getElementById('recapAgent').value ? '?userId=' + document.getElementById('recapAgent').value : '')">
+                        <i class="bi bi-download me-1"></i>Télécharger le PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
 {% elseif is_granted('ROLE_RH') %}
     {# Vue RH #}
@@ -202,14 +238,50 @@
     </div>
     {% endif %}
 
-    <div class="mt-3 d-flex gap-2">
+    <div class="mt-3 d-flex gap-2 flex-wrap">
         <a href="{{ path('app_leave_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-list-ul me-1"></i>Toutes les demandes
         </a>
         <a href="{{ path('app_agents_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-people me-1"></i>Gérer les utilisateurs
         </a>
+        {% if recap_agents is defined and recap_agents is not empty %}
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#recapModal">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i>Récapitulatif des soldes
+        </button>
+        {% endif %}
     </div>
+
+    {% if recap_agents is defined and recap_agents is not empty %}
+    <div class="modal fade" id="recapModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-bar-graph me-1"></i>Récapitulatif des soldes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="recapAgent" class="form-label fw-semibold">Agent</label>
+                        <select id="recapAgent" class="form-select">
+                            <option value="">— Tous les agents —</option>
+                            {% for agent in recap_agents %}
+                            <option value="{{ agent.id }}">{{ agent.nomComplet ?? agent.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary"
+                            onclick="window.location.href='{{ path('app_agents_recap_pdf') }}' + (document.getElementById('recapAgent').value ? '?userId=' + document.getElementById('recapAgent').value : '')">
+                        <i class="bi bi-download me-1"></i>Télécharger le PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
 {% else %}
     {# Vue Agent #}
@@ -303,7 +375,7 @@
                             </td>
                             <td>
                                 {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
-                                {% if leave.statutValue in ['APPROVED', 'REJECTED'] %}
+                                {% if leave.statutValue in ['APPROVED', 'REJECTED', 'VALIDATED_CHEF'] %}
                                     {% set log = last_logs[leave.id] ?? null %}
                                     {% if log and log.auteurId %}
                                         <br><small class="text-muted">par {{ author_names[log.auteurId] ?? log.auteurId }}</small>

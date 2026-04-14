@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #212529; margin: 1cm; }
+
+        .header { border-bottom: 2px solid #0d6efd; padding-bottom: 10px; margin-bottom: 20px; }
+        .header h1 { font-size: 16px; color: #0d6efd; }
+        .header .meta { font-size: 10px; color: #6c757d; margin-top: 4px; }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #0d6efd; color: #fff;
+            padding: 7px 10px; font-size: 10px; text-align: left;
+        }
+        thead th.text-right { text-align: right; }
+        tbody tr:nth-child(even) { background: #f8f9fa; }
+        tbody td { padding: 6px 10px; border-bottom: 1px solid #dee2e6; vertical-align: middle; }
+        tbody td.text-right { text-align: right; font-weight: bold; }
+
+        .val-conge   { color: #0d6efd; }
+        .val-rtt     { color: #0dcaf0; }
+        .val-hs      { color: #fd7e14; }
+
+        .footer { margin-top: 14px; font-size: 9px; color: #6c757d;
+                  text-align: right; border-top: 1px solid #dee2e6; padding-top: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1><i></i>Récapitulatif des soldes — {{ title }}</h1>
+    <div class="meta">
+        Édité le {{ "now"|date("d/m/Y à H:i") }}
+        {% if current_user %} &nbsp;·&nbsp; par {{ current_user.nomComplet ?? current_user.username }}{% endif %}
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            {% if is_rh %}<th>Service</th>{% endif %}
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th class="text-right">Congés (h)</th>
+            <th class="text-right">RTT (j)</th>
+            <th class="text-right">Heures sup. (h)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set service_names = {
+            '01': 'Administratif',
+            '02': 'Instruction publique et crèche',
+            '03': 'Techniques et marchés publics',
+            '04': 'Secrétariat général',
+            '05': 'Communication',
+            '06': 'Sports',
+            '07': 'Finances',
+            '08': 'Urbanisme',
+            '09': 'Centre de loisirs',
+            '10': 'Sénou et animations',
+            '11': 'Informatique',
+            '12': 'Police municipale',
+            '13': 'Culturel',
+            '14': 'Silpo',
+            '16': 'Population'
+        } %}
+        {% for agent in agents %}
+        <tr>
+            {% if is_rh %}
+            <td>
+                {% for sn in agent.serviceNumbers %}
+                    {{ service_names[sn] ?? sn }}{% if not loop.last %}, {% endif %}
+                {% else %}
+                    —
+                {% endfor %}
+            </td>
+            {% endif %}
+            <td>{{ agent.nom ?? '—' }}</td>
+            <td>{{ agent.prenom ?? '—' }}</td>
+            <td class="text-right val-conge">{{ agent.leaveBalance.value|round(2) }}</td>
+            <td class="text-right val-rtt">{{ agent.rttBalance.value|round(1) }}</td>
+            <td class="text-right val-hs">{{ agent.heureSupBalance.value|round(2) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="{{ is_rh ? 6 : 5 }}" style="text-align:center;color:#6c757d;padding:12px">
+                Aucun agent.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="footer">{{ agents|length }} agent(s) — Gestion des Congés</div>
+
+</body>
+</html>

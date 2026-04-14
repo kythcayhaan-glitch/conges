@@ -344,13 +344,29 @@ final class LeaveWebController extends AbstractController
             }
         }
 
+        // Auteur de la validation chef (affiché pour tous les rôles)
+        $validatedByChefName = null;
+        if ($leave->isValidatedByChef()) {
+            $allLogs = $this->leaveRepository->findAuditLogsByLeaveRequestId($id);
+            foreach (array_reverse($allLogs) as $log) {
+                if ($log->getNouveauStatut()->value === 'VALIDATED_CHEF' && $log->getAuteurId()) {
+                    $author = $this->em->getRepository(User::class)->find($log->getAuteurId());
+                    if ($author instanceof User) {
+                        $validatedByChefName = $author->getNomComplet() ?? $author->getUsername();
+                    }
+                    break;
+                }
+            }
+        }
+
         return $this->render('leave/show.html.twig', [
-            'leave'              => $leave,
-            'leave_user'         => $leaveUser,
-            'audit_logs'         => $auditLogs,
-            'rejection_log'      => $rejectionLog,
-            'is_chef'            => $isChef,
-            'can_validate_chef'  => $canValidateChef,
+            'leave'                  => $leave,
+            'leave_user'             => $leaveUser,
+            'audit_logs'             => $auditLogs,
+            'rejection_log'          => $rejectionLog,
+            'is_chef'                => $isChef,
+            'can_validate_chef'      => $canValidateChef,
+            'validated_by_chef_name' => $validatedByChefName,
         ]);
     }
 

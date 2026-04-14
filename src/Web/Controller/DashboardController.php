@@ -36,7 +36,7 @@ final class DashboardController extends AbstractController
             $pendingLeaves       = $this->leaveRepository->findAllPending();
             $validatedChefLeaves = $this->leaveRepository->findAllValidatedByChef();
 
-            $users      = $this->em->getRepository(User::class)->findAll();
+            $users      = $this->em->getRepository(User::class)->findBy([], ['nom' => 'ASC', 'prenom' => 'ASC']);
             $agentNames = [];
             foreach ($users as $u) {
                 $agentNames[$u->getId()] = $u->getNomComplet() ?? $u->getUsername();
@@ -47,6 +47,7 @@ final class DashboardController extends AbstractController
                 'validated_chef_leaves'=> $validatedChefLeaves,
                 'agent_names'          => $agentNames,
                 'current_user'         => $user instanceof User ? $user : null,
+                'recap_agents'         => $users,
             ]);
         }
 
@@ -57,6 +58,7 @@ final class DashboardController extends AbstractController
                 $allUsers,
                 fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0
             ));
+            usort($serviceUsers, fn(User $a, User $b) => strcmp((string)$a->getNom(), (string)$b->getNom()));
             $serviceUserIds = array_map(fn(User $u) => $u->getId(), $serviceUsers);
             $pendingLeaves  = $this->leaveRepository->findPendingByUserIds($serviceUserIds);
 
@@ -70,6 +72,7 @@ final class DashboardController extends AbstractController
                 'agent_names'    => $agentNames,
                 'current_user'   => $user,
                 'is_chef'        => true,
+                'recap_agents'   => $serviceUsers,
             ]);
         }
 

@@ -118,7 +118,7 @@
                         <td class="text-truncate" style="max-width:200px" title="{{ leave.motifValue }}">{{ leave.motifValue }}</td>
                         <td>
                             {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
-                            {% if leave.statutValue in ['APPROVED', 'REJECTED'] %}
+                            {% if leave.statutValue in ['APPROVED', 'REJECTED', 'VALIDATED_CHEF'] %}
                                 {% set log = last_logs[leave.id] ?? null %}
                                 {% if log and log.auteurId %}
                                     <br><small class="text-muted">par {{ user_emails[log.auteurId] ?? log.auteurId }}</small>
