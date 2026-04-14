@@ -81,11 +81,15 @@ final class LeaveRequestVoter extends Voter
         if ($isAdmin) {
             return !$leave->isRejected() && !$leave->isCancelled();
         }
+        // Demande validée (chef ou RH) : seul l'admin peut annuler
+        if ($leave->isValidatedByChef() || $leave->isApproved()) {
+            return false;
+        }
         if ($isRh) {
-            return $leave->isPending() || $leave->isValidatedByChef() || $leave->isApproved();
+            return $leave->isPending();
         }
         if ($isChef && $this->isSameService($leave, $user)) {
-            return $leave->isPending() || $leave->isValidatedByChef();
+            return $leave->isPending();
         }
         // Propriétaire : seulement PENDING
         return $this->isOwner($leave, $user) && $leave->isPending();

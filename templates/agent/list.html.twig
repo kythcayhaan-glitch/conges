@@ -4,9 +4,9 @@
 
 {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>Utilisateurs</h1>
+    <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>Agents</h1>
     <a href="{{ path('app_admin_users_new') }}" class="btn btn-primary">
-        <i class="bi bi-person-plus me-1"></i>Nouvel utilisateur
+        <i class="bi bi-person-plus me-1"></i>Nouvel Agent
     </a>
 </div>
 
@@ -14,41 +14,66 @@
     {% if users is empty %}
         <div class="card-body text-muted text-center py-5">Aucun utilisateur enregistré.</div>
     {% else %}
+        <div class="p-3 pb-0">
+            <input type="search" class="form-control form-control-sm" placeholder="Rechercher…" id="searchAgent" oninput="filterTable(this,'agentTable')">
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0" id="agentTable">
                 <thead class="table-light">
                     <tr>
-                        <th>N° service</th>
-                        <th>Nom</th>
-                        <th>Identifiant</th>
+                        <th class="sortable" data-col="0" style="cursor:pointer;user-select:none">
+                            Service <i class="bi bi-arrow-down-up text-muted small ms-1" id="icon-0"></i>
+                        </th>
+                        <th class="sortable" data-col="1" style="cursor:pointer;user-select:none">
+                            Nom <i class="bi bi-arrow-down-up text-muted small ms-1" id="icon-1"></i>
+                        </th>
                         <th>E-mail</th>
-                        <th class="text-end">Congés (Heures)</th>
-                        <th class="text-end">RTT (Jours)</th>
-                        <th class="text-end">Heures supplémentaires. (Heures)</th>
+                        <th class="text-end">Congés (h)</th>
+                        <th class="text-end">RTT (j)</th>
+                        <th class="text-end">Heures sup. (h)</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% set service_names = {
+                        '01': 'Administratif',
+                        '02': 'Instruction publique et crèche',
+                        '03': 'Techniques et marchés publics',
+                        '04': 'Secrétariat général',
+                        '05': 'Communication',
+                        '06': 'Sports',
+                        '07': 'Finances',
+                        '08': 'Urbanisme',
+                        '09': 'Centre de loisirs',
+                        '10': 'Sénou et animations',
+                        '11': 'Informatique',
+                        '12': 'Police municipale',
+                        '13': 'Culturel',
+                        '14': 'Silpo',
+                        '16': 'Population'
+                    } %}
                     {% for user in users %}
                     <tr>
-                        <td>
+                        <td data-sort="{{ user.serviceNumbers|join(',') }}">
                             {% if user.serviceNumbers is not empty %}
                                 {% for sn in user.serviceNumbers %}
-                                    <span class="badge bg-secondary font-monospace">{{ sn }}</span>
+                                    <span class="badge bg-secondary">{{ service_names[sn] ?? sn }}</span>
                                 {% endfor %}
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td>{{ user.nomComplet ?? '—' }}</td>
-                        <td>{{ user.username }}</td>
+                        <td data-sort="{{ user.nom ~ ' ' ~ user.prenom }}">{{ user.nom }} {{ user.prenom }}</td>
                         <td>{{ user.email }}</td>
                         <td class="text-end fw-semibold text-primary">{{ user.leaveBalance.value|round(2) }}</td>
                         <td class="text-end fw-semibold text-info">{{ user.rttBalance.value|round(2) }}</td>
                         <td class="text-end fw-semibold text-warning">{{ user.heureSupBalance.value|round(2) }}</td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <a href="{{ path('app_agents_show', {id: user.id}) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ path('app_agents_recap_pdf', {userId: user.id}) }}" class="btn btn-sm btn-outline-secondary" title="Imprimer le solde">
+                                <i class="bi bi-printer me-1"></i>Imprimer le solde
                             </a>
                         </td>
                     </tr>
@@ -58,4 +83,57 @@
         </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function filterTable(input, tableId) {
+    var q = input.value.toLowerCase();
+    document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+(function () {
+    var table    = document.getElementById('agentTable');
+    if (!table) return;
+    var tbody    = table.querySelector('tbody');
+    var sortState = { col: null, asc: true };
+
+    var icons = { 'none': 'bi-arrow-down-up text-muted', 'asc': 'bi-arrow-up', 'desc': 'bi-arrow-down' };
+
+    function updateIcons(activeCol, asc) {
+        table.querySelectorAll('.sortable').forEach(function (th) {
+            var col  = th.dataset.col;
+            var icon = th.querySelector('i');
+            if (col == activeCol) {
+                icon.className = 'bi ' + (asc ? icons.asc : icons.desc) + ' small ms-1';
+            } else {
+                icon.className = 'bi ' + icons.none + ' small ms-1';
+            }
+        });
+    }
+
+    table.querySelectorAll('.sortable').forEach(function (th) {
+        th.addEventListener('click', function () {
+            var col = this.dataset.col;
+            if (sortState.col === col) {
+                sortState.asc = !sortState.asc;
+            } else {
+                sortState.col = col;
+                sortState.asc = true;
+            }
+            var asc  = sortState.asc;
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function (a, b) {
+                var va = a.querySelectorAll('td')[col].dataset.sort || '';
+                var vb = b.querySelectorAll('td')[col].dataset.sort || '';
+                return asc ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr');
+            });
+            rows.forEach(function (r) { tbody.appendChild(r); });
+            updateIcons(col, asc);
+        });
+    });
+})();
+</script>
 {% endblock %}

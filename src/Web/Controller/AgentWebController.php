@@ -99,7 +99,9 @@ final class AgentWebController extends AbstractController
             'is_rh'        => $isRh,
         ]);
 
-        $dompdf = new \Dompdf\Dompdf();
+        $options = new \Dompdf\Options();
+        $options->setIsHtml5ParserEnabled(true);
+        $dompdf = new \Dompdf\Dompdf($options);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->loadHtml($html);
         $dompdf->render();

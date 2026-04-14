@@ -40,10 +40,11 @@ final class LeaveWebController extends AbstractController
     #[IsGranted('ROLE_AGENT')]
     public function list(Request $request): Response
     {
-        $user         = $this->getUser();
-        $leaves       = [];
-        $typeParam    = $request->query->get('type', 'CONGE');
-        $leaveType    = LeaveType::tryFrom(strtoupper($typeParam)) ?? LeaveType::CONGE;
+        $user      = $this->getUser();
+        $leaves    = [];
+        $typeParam = strtoupper($request->query->get('type', 'CONGE'));
+        $allTypes  = $typeParam === 'ALL' && $this->isGranted('ROLE_RH');
+        $leaveType = $allTypes ? null : (LeaveType::tryFrom($typeParam) ?? LeaveType::CONGE);
 
         $isChef = $this->isGranted('ROLE_CHEF_SERVICE') && !$this->isGranted('ROLE_RH');
 
@@ -82,8 +83,10 @@ final class LeaveWebController extends AbstractController
                 : [];
         }
 
-        // Filtrage par type
-        $leaves = array_values(array_filter($leaves, fn($l) => $l->getType() === $leaveType));
+        // Filtrage par type (ignoré si type=ALL pour RH/Admin)
+        if ($leaveType !== null) {
+            $leaves = array_values(array_filter($leaves, fn($l) => $l->getType() === $leaveType));
+        }
 
         // Index userId → nom complet
         $users      = $this->em->getRepository(User::class)->findAll();
@@ -198,7 +201,9 @@ final class LeaveWebController extends AbstractController
             'is_rh'        => $isRh && !$targetUser,
         ]);
 
-        $dompdf = new \Dompdf\Dompdf();
+        $options = new \Dompdf\Options();
+        $options->setIsHtml5ParserEnabled(true);
+        $dompdf = new \Dompdf\Dompdf($options);
         $dompdf->setPaper('A4', 'landscape');
         $dompdf->loadHtml($html);
         $dompdf->render();
@@ -573,6 +578,12 @@ final class LeaveWebController extends AbstractController
         $leave = $this->leaveRepository->findById($id);
         if ($leave === null) {
             throw $this->createNotFoundException();
+        }
+
+        // Demande validée (chef ou RH) : seul l'admin peut supprimer
+        if (($leave->isValidatedByChef() || $leave->isApproved()) && !$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('error', 'Impossible de supprimer une demande validée ou approuvée. Seul l\'administrateur peut effectuer cette action.');
+            return $this->redirectToRoute('app_leave_show', ['id' => $id]);
         }
 
         // Si la demande était approuvée, rembourser le solde

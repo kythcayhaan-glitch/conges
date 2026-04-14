@@ -38,7 +38,7 @@
                     <span class="text-muted">Durée</span>
                     <strong>
                         {% if leave.type.value == 'RTT' %}
-                            {{ leave.heuresValue|round(0) }} jour{{ leave.heuresValue > 1 ? 's' : '' }}
+                            {{ leave.heuresValue == 0.5 ? '½ jour' : leave.heuresValue|round(0) ~ ' jour' ~ (leave.heuresValue > 1 ? 's' : '') }}
                         {% else %}
                             {{ leave.heuresValue|round(2) }} h
                         {% endif %}
@@ -169,11 +169,8 @@
         </div>
         {% endif %}
 
-        {# Annulation #}
-        {% if leave.pending and (
-            is_granted('ROLE_RH') or
-            (app.user and app.user.id == leave.userId)
-        ) %}
+        {# Annulation : PENDING → RH ou propriétaire ; VALIDATED_CHEF/APPROVED → admin uniquement #}
+        {% if is_granted('LEAVE_CANCEL', leave) %}
         <div class="mt-2">
             <form method="post" action="{{ path('app_leave_cancel', {id: leave.id}) }}"
                   onsubmit="return confirm('Confirmer l\'annulation ?')">
@@ -185,8 +182,8 @@
         </div>
         {% endif %}
 
-        {# Suppression (RH seulement) #}
-        {% if is_granted('ROLE_RH') %}
+        {# Suppression : RH si non validée/approuvée ; admin toujours #}
+        {% if is_granted('ROLE_ADMIN') or (is_granted('ROLE_RH') and not leave.validatedByChef and not leave.approved) %}
         <div class="mt-2">
             <form method="post" action="{{ path('app_leave_delete', {id: leave.id}) }}"
                   onsubmit="return confirm('Supprimer définitivement cette demande ? Cette action est irréversible.')">

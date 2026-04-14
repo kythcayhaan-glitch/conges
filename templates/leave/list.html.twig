@@ -3,23 +3,33 @@
 {% block title %}Demandes de congé{% endblock %}
 
 {% block body %}
+{% set all_types = leave_type is null %}
+{% set type_val  = all_types ? 'ALL' : leave_type.value %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">
-        <i class="bi bi-{{ leave_type.value == 'RTT' ? 'clock' : 'calendar3' }} me-2"></i>
-        {% if is_granted('ROLE_RH') %}Toutes les demandes — {{ leave_type.label() }}{% else %}Mes demandes — {{ leave_type.label() }}{% endif %}
+        <i class="bi bi-{{ (not all_types and leave_type.value == 'RTT') ? 'clock' : 'calendar3' }} me-2"></i>
+        {% if all_types %}
+            Toutes les demandes — Tous types
+        {% elseif is_granted('ROLE_RH') %}
+            Toutes les demandes — {{ leave_type.label() }}
+        {% else %}
+            Mes demandes — {{ leave_type.label() }}
+        {% endif %}
     </h1>
     <div class="d-flex gap-2">
-        {% if print_users is defined and print_users is not empty %}
-        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#printModal">
-            <i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en pdf
-        </button>
-        {% else %}
-        <a href="{{ path('app_leave_pdf', {type: leave_type.value, statut: app.request.query.get('statut')}) }}"
-           class="btn btn-outline-secondary" target="_blank">
-            <i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en pdf
-        </a>
+        {% if not all_types %}
+            {% if print_users is defined and print_users is not empty %}
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#printModal">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en pdf
+            </button>
+            {% else %}
+            <a href="{{ path('app_leave_pdf', {type: leave_type.value, statut: app.request.query.get('statut')}) }}"
+               class="btn btn-outline-secondary" target="_blank">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Imprimer en pdf
+            </a>
+            {% endif %}
         {% endif %}
-        <a href="{{ path('app_leave_new', {type: leave_type.value}) }}" class="btn btn-primary">
+        <a href="{{ path('app_leave_new', {type: all_types ? 'CONGE' : leave_type.value}) }}" class="btn btn-primary">
             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande
         </a>
     </div>
@@ -64,15 +74,22 @@
 {% endif %}
 
 {% if is_granted('ROLE_RH') %}
-<div class="mb-3">
-    <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-sm {{ app.request.query.get('statut') is null ? 'btn-secondary' : 'btn-outline-secondary' }} me-1">Toutes</a>
-    <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'PENDING'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'PENDING' ? 'btn-warning' : 'btn-outline-warning' }} me-1">En attente</a>
-    <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'VALIDATED_CHEF'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'VALIDATED_CHEF' ? 'btn-info text-dark' : 'btn-outline-info' }}">Validées chef</a>
+{% set cur_statut = app.request.query.get('statut') %}
+<div class="mb-2 d-flex flex-wrap gap-1">
+    <a href="{{ path('app_leave_list', {type: 'ALL',       statut: cur_statut}) }}" class="btn btn-sm {{ all_types           ? 'btn-secondary'        : 'btn-outline-secondary' }}">Tous types</a>
+    <a href="{{ path('app_leave_list', {type: 'CONGE',     statut: cur_statut}) }}" class="btn btn-sm {{ (not all_types and leave_type.value == 'CONGE')     ? 'btn-primary'          : 'btn-outline-primary' }}">Congés</a>
+    <a href="{{ path('app_leave_list', {type: 'RTT',       statut: cur_statut}) }}" class="btn btn-sm {{ (not all_types and leave_type.value == 'RTT')       ? 'btn-info text-dark'   : 'btn-outline-info' }}">RTT</a>
+    <a href="{{ path('app_leave_list', {type: 'HEURE_SUP', statut: cur_statut}) }}" class="btn btn-sm {{ (not all_types and leave_type.value == 'HEURE_SUP') ? 'btn-warning'          : 'btn-outline-warning' }}">Heures sup.</a>
+</div>
+<div class="mb-3 d-flex flex-wrap gap-1">
+    <a href="{{ path('app_leave_list', {type: type_val}) }}"                              class="btn btn-sm {{ cur_statut is null               ? 'btn-secondary'        : 'btn-outline-secondary' }}">Toutes</a>
+    <a href="{{ path('app_leave_list', {type: type_val, statut: 'PENDING'}) }}"           class="btn btn-sm {{ cur_statut == 'PENDING'          ? 'btn-warning'          : 'btn-outline-warning' }}">En attente</a>
+    <a href="{{ path('app_leave_list', {type: type_val, statut: 'VALIDATED_CHEF'}) }}"    class="btn btn-sm {{ cur_statut == 'VALIDATED_CHEF'   ? 'btn-info text-dark'   : 'btn-outline-info' }}">Validées chef</a>
 </div>
 {% elseif is_chef is defined and is_chef %}
 <div class="mb-3">
-    <a href="{{ path('app_leave_list', {type: leave_type.value}) }}" class="btn btn-sm {{ app.request.query.get('statut') is null ? 'btn-secondary' : 'btn-outline-secondary' }} me-1">Toutes (mon service)</a>
-    <a href="{{ path('app_leave_list', {type: leave_type.value, statut: 'PENDING'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'PENDING' ? 'btn-warning' : 'btn-outline-warning' }}">En attente</a>
+    <a href="{{ path('app_leave_list', {type: type_val}) }}" class="btn btn-sm {{ app.request.query.get('statut') is null ? 'btn-secondary' : 'btn-outline-secondary' }} me-1">Toutes (mon service)</a>
+    <a href="{{ path('app_leave_list', {type: type_val, statut: 'PENDING'}) }}" class="btn btn-sm {{ app.request.query.get('statut') == 'PENDING' ? 'btn-warning' : 'btn-outline-warning' }}">En attente</a>
 </div>
 {% endif %}
 
@@ -80,11 +97,15 @@
     {% if leaves is empty %}
         <div class="card-body text-muted text-center py-5">Aucune demande.</div>
     {% else %}
+        <div class="p-3 pb-0">
+            <input type="search" class="form-control form-control-sm" placeholder="Rechercher…" id="searchLeave" oninput="filterTable(this,'leaveTable')">
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0" id="leaveTable">
                 <thead class="table-light">
                     <tr>
                         {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<th>Agent</th>{% endif %}
+                        {% if all_types %}<th>Type</th>{% endif %}
                         <th>Période</th>
                         <th>Motif</th>
                         <th>Statut</th>
@@ -94,12 +115,13 @@
                 </thead>
                 <tbody>
                     {% for leave in leaves %}
-                    <tr>
+                    <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
                         {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
+                        {% if all_types %}<td>{{ leave.type.label() }}</td>{% endif %}
                         <td class="text-nowrap">
                             {{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}
                             {% if leave.type.value == 'RTT' %}
-                            <br><small class="text-muted">{{ leave.heuresValue|round(0) }} jour{{ leave.heuresValue > 1 ? 's' : '' }}</small>
+                            <br><small class="text-muted">{{ leave.heuresValue == 0.5 ? '½ jour' : leave.heuresValue|round(0) ~ ' jour' ~ (leave.heuresValue > 1 ? 's' : '') }}</small>
                             {% else %}
                                 {% if leave.journeeEntiere %}
                                 <br><small class="text-muted">Journée entière</small>
@@ -174,7 +196,7 @@
 <script>
 document.getElementById('printConfirmBtn').addEventListener('click', function () {
     const agentId = document.getElementById('printAgent').value;
-    const base    = {{ path('app_leave_pdf', {type: leave_type.value})|json_encode|raw }};
+    const base    = {{ path('app_leave_pdf', {type: all_types ? 'CONGE' : leave_type.value})|json_encode|raw }};
     const statut  = {{ (app.request.query.get('statut') ?? '')|json_encode|raw }};
     let url = base;
     if (statut) url += '&statut=' + encodeURIComponent(statut);
@@ -184,4 +206,22 @@ document.getElementById('printConfirmBtn').addEventListener('click', function ()
 });
 </script>
 {% endif %}
+{% endblock %}
+
+{% block javascripts %}
+<script>
+function filterTable(input, tableId) {
+    var q = input.value.toLowerCase();
+    document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+        if (e.target.closest('a, button')) return;
+        window.location.href = row.dataset.href;
+    });
+});
+</script>
 {% endblock %}
