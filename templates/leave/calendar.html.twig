@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+{% block title %}Calendrier des absences{% endblock %}
+
+{% block stylesheets %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="bi bi-calendar3-week me-2"></i>Calendrier des absences</h1>
+</div>
+
+<div class="d-flex gap-3 mb-3 flex-wrap align-items-center">
+    <span><span style="display:inline-block;width:14px;height:14px;background:#0d6efd;border-radius:3px;vertical-align:middle"></span> Congé</span>
+    <span><span style="display:inline-block;width:14px;height:14px;background:#20c997;border-radius:3px;vertical-align:middle"></span> RTT</span>
+    <span><span style="display:inline-block;width:14px;height:14px;background:#fd7e14;border-radius:3px;vertical-align:middle"></span> Heures sup.</span>
+    <span class="text-muted small ms-2">Opacité : plein = approuvé · moyen = validé chef · clair = en attente</span>
+</div>
+
+<div class="card shadow-sm p-3">
+    <div id="calendar"></div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var calendarEl = document.getElementById('calendar');
+    var calendar   = new FullCalendar.Calendar(calendarEl, {
+        locale:        'fr',
+        initialView:   'dayGridMonth',
+        headerToolbar: {
+            left:   'prev,next today',
+            center: 'title',
+            right:  'dayGridMonth,timeGridWeek,listMonth'
+        },
+        buttonText: {
+            today:     "Aujourd'hui",
+            month:     'Mois',
+            week:      'Semaine',
+            list:      'Liste'
+        },
+        events: {{ events|json_encode|raw }},
+        eventClick: function(info) {
+            info.jsEvent.preventDefault();
+            if (info.event.url) {
+                window.location.href = info.event.url;
+            }
+        },
+        eventDidMount: function(info) {
+            info.el.title = info.event.title;
+        },
+        height:      'auto',
+        fixedWeekCount: false,
+    });
+    calendar.render();
+});
+</script>
+{% endblock %}

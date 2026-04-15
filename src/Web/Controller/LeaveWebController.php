@@ -599,4 +599,72 @@ final class LeaveWebController extends AbstractController
 
         return $this->redirectToRoute('app_leave_list');
     }
+
+    #[Route('/calendar', name: 'calendar', methods: ['GET'])]
+    #[IsGranted('ROLE_AGENT')]
+    public function calendar(): Response
+    {
+        $user   = $this->getUser();
+        $leaves = [];
+        $isRh   = $this->isGranted('ROLE_RH');
+        $isChef = $this->isGranted('ROLE_CHEF_SERVICE') && !$isRh;
+
+        if ($isRh) {
+            $leaves = $this->leaveRepository->findAll();
+        } elseif ($isChef && $user instanceof User) {
+            $chefServices   = $user->getServiceNumbers();
+            $allUsers       = $this->em->getRepository(User::class)->findAll();
+            $serviceUserIds = array_map(
+                fn(User $u) => $u->getId(),
+                array_filter($allUsers, fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0)
+            );
+            $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
+        } else {
+            $leaves = $user instanceof User ? $this->leaveRepository->findByUserId($user->getId()) : [];
+        }
+
+        // Exclure annulées et rejetées
+        $leaves = array_values(array_filter($leaves, fn($l) => !$l->isCancelled() && !$l->isRejected()));
+
+        // Index userId → nom
+        $allUsers   = $this->em->getRepository(User::class)->findAll();
+        $agentNames = [];
+        foreach ($allUsers as $u) {
+            $agentNames[$u->getId()] = $u->getNomComplet() ?? $u->getUsername();
+        }
+
+        $typeColors = [
+            'CONGE'     => '#0d6efd',
+            'RTT'       => '#20c997',
+            'HEURE_SUP' => '#fd7e14',
+        ];
+
+        $events = [];
+        foreach ($leaves as $leave) {
+            $baseColor = $typeColors[$leave->getType()->value] ?? '#6c757d';
+            $alpha     = match ($leave->getStatutValue()) {
+                'APPROVED'       => '',
+                'VALIDATED_CHEF' => 'BB',
+                default          => '66', // PENDING
+            };
+            $endDate = (new \DateTimeImmutable($leave->getDateFinFormatted()))->modify('+1 day')->format('Y-m-d');
+            $prefix  = ($isRh || $isChef) ? ($agentNames[$leave->getUserId()] ?? '?') . ' — ' : '';
+
+            $events[] = [
+                'title'           => $prefix . $leave->getType()->label(),
+                'start'           => $leave->getDateDebutFormatted(),
+                'end'             => $endDate,
+                'url'             => $this->generateUrl('app_leave_show', ['id' => $leave->getId()]),
+                'backgroundColor' => $baseColor . $alpha,
+                'borderColor'     => $baseColor,
+                'textColor'       => '#fff',
+            ];
+        }
+
+        return $this->render('leave/calendar.html.twig', [
+            'events'  => $events,
+            'is_rh'   => $isRh,
+            'is_chef' => $isChef,
+        ]);
+    }
 }
