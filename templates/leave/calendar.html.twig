@@ -15,10 +15,31 @@
     <span><span style="display:inline-block;width:14px;height:14px;background:#20c997;border-radius:3px;vertical-align:middle"></span> RTT</span>
     <span><span style="display:inline-block;width:14px;height:14px;background:#fd7e14;border-radius:3px;vertical-align:middle"></span> Heures sup.</span>
     <span class="text-muted small ms-2">Opacité : plein = approuvé · moyen = validé chef · clair = en attente</span>
+    <span class="text-muted small">— Cliquez sur une date pour créer une demande</span>
 </div>
 
 <div class="card shadow-sm p-3">
     <div id="calendar"></div>
+</div>
+
+{# Modal choix du type de demande #}
+<div class="modal fade" id="newLeaveModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-1"></i>Nouvelle demande</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="text-muted mb-3" id="modalDateLabel"></p>
+                <div class="d-grid gap-2">
+                    <a id="btnConge"    href="#" class="btn btn-primary"><i class="bi bi-calendar3 me-1"></i>Congé</a>
+                    <a id="btnRtt"      href="#" class="btn btn-outline-info"><i class="bi bi-clock me-1"></i>RTT</a>
+                    <a id="btnHeureSup" href="#" class="btn btn-outline-warning"><i class="bi bi-hourglass-split me-1"></i>Heures supplémentaires</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -26,6 +47,18 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var baseUrl   = {{ path('app_leave_new')|json_encode|raw }};
+    var modal     = new bootstrap.Modal(document.getElementById('newLeaveModal'));
+    var dateLabel = document.getElementById('modalDateLabel');
+
+    function setModalDate(dateStr) {
+        var d = new Date(dateStr + 'T12:00:00');
+        dateLabel.textContent = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+        document.getElementById('btnConge').href    = baseUrl + '?type=CONGE&date='     + dateStr;
+        document.getElementById('btnRtt').href      = baseUrl + '?type=RTT&date='       + dateStr;
+        document.getElementById('btnHeureSup').href = baseUrl + '?type=HEURE_SUP&date=' + dateStr;
+    }
+
     var calendarEl = document.getElementById('calendar');
     var calendar   = new FullCalendar.Calendar(calendarEl, {
         locale:        'fr',
@@ -41,8 +74,13 @@ document.addEventListener('DOMContentLoaded', function () {
             week:      'Semaine',
             list:      'Liste'
         },
-        events: {{ events|json_encode|raw }},
-        eventClick: function(info) {
+        selectable:  true,
+        events:      {{ events|json_encode|raw }},
+        dateClick:   function(info) {
+            setModalDate(info.dateStr);
+            modal.show();
+        },
+        eventClick:  function(info) {
             info.jsEvent.preventDefault();
             if (info.event.url) {
                 window.location.href = info.event.url;
@@ -51,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function () {
         eventDidMount: function(info) {
             info.el.title = info.event.title;
         },
-        height:      'auto',
+        height:         'auto',
         fixedWeekCount: false,
     });
     calendar.render();
