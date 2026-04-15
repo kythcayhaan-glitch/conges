@@ -3,6 +3,95 @@
 
 {% block stylesheets %}
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<style>
+/* ── Conteneur général ── */
+#calendar { font-size: 11px; }
+
+/* ── En-têtes des mois ── */
+.fc .fc-multimonth-title {
+    background: #1565c0;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: 5px 0;
+}
+
+/* ── En-têtes jours de la semaine ── */
+.fc .fc-col-header-cell {
+    background: #e3f0ff;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1565c0;
+    text-transform: uppercase;
+    padding: 2px 0;
+}
+/* Samedi */
+.fc .fc-col-header-cell:nth-child(7) { background: #f0f0f0; color: #555; }
+/* Dimanche */
+.fc .fc-col-header-cell:nth-child(1) { background: #fde8e8; color: #c0392b; }
+
+/* ── Cellules des jours ── */
+.fc .fc-daygrid-day { padding: 0 !important; }
+.fc .fc-daygrid-day-frame { min-height: 52px; }
+.fc .fc-daygrid-day-number {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 4px;
+    line-height: 1.2;
+}
+
+/* ── Samedi ── */
+.fc .fc-day-sat { background: #f7f7f7; }
+.fc .fc-day-sat .fc-daygrid-day-number { color: #666; }
+
+/* ── Dimanche ── */
+.fc .fc-day-sun { background: #fff5f5; }
+.fc .fc-day-sun .fc-daygrid-day-number { color: #c0392b; font-weight: 700; }
+
+/* ── Aujourd'hui ── */
+.fc .fc-day-today { background: #fffde7 !important; }
+.fc .fc-day-today .fc-daygrid-day-number {
+    background: #f9a825;
+    color: #fff;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+}
+
+/* ── Numéros de semaine ── */
+.fc .fc-daygrid-week-number {
+    background: #1565c0;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 0;
+    min-width: 18px;
+    padding: 2px 3px;
+}
+
+/* ── Événements ── */
+.fc-event { font-size: 10px; border-radius: 2px; padding: 1px 3px; }
+.fc-event-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Vue annuelle : grille 4 colonnes × 3 lignes ── */
+.fc-multimonth-multicol .fc-multimonth-month { min-width: 0; }
+
+/* ── Toolbar ── */
+.fc .fc-toolbar-title { font-size: 16px; font-weight: 700; color: #1565c0; }
+.fc .fc-button-primary {
+    background: #1565c0;
+    border-color: #1565c0;
+    font-size: 12px;
+}
+.fc .fc-button-primary:hover,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+    background: #0d47a1;
+    border-color: #0d47a1;
+}
+</style>
 {% endblock %}
 
 {% block body %}
@@ -11,14 +100,14 @@
 </div>
 
 <div class="d-flex gap-3 mb-3 flex-wrap align-items-center">
-    <span><span style="display:inline-block;width:14px;height:14px;background:#0d6efd;border-radius:3px;vertical-align:middle"></span> Congé</span>
-    <span><span style="display:inline-block;width:14px;height:14px;background:#20c997;border-radius:3px;vertical-align:middle"></span> RTT</span>
-    <span><span style="display:inline-block;width:14px;height:14px;background:#fd7e14;border-radius:3px;vertical-align:middle"></span> Heures sup.</span>
-    <span class="text-muted small ms-2">Opacité : plein = approuvé · moyen = validé chef · clair = en attente</span>
-    <span class="text-muted small">— Cliquez sur une date pour créer une demande</span>
+    <span><span style="display:inline-block;width:13px;height:13px;background:#0d6efd;border-radius:2px;vertical-align:middle"></span> Congé</span>
+    <span><span style="display:inline-block;width:13px;height:13px;background:#20c997;border-radius:2px;vertical-align:middle"></span> RTT</span>
+    <span><span style="display:inline-block;width:13px;height:13px;background:#fd7e14;border-radius:2px;vertical-align:middle"></span> Heures sup.</span>
+    <span class="text-muted small ms-1">— plein = approuvé · moyen = validé chef · clair = en attente</span>
+    <span class="text-muted small">· Cliquez sur une date pour créer une demande</span>
 </div>
 
-<div class="card shadow-sm p-3">
+<div class="card shadow-sm p-2">
     <div id="calendar"></div>
 </div>
 
@@ -61,18 +150,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var calendarEl = document.getElementById('calendar');
     var calendar   = new FullCalendar.Calendar(calendarEl, {
-        locale:        'fr',
-        initialView:   'dayGridMonth',
+        locale:          'fr',
+        initialView:     'multiMonthYear',
+        weekNumbers:     true,
+        weekNumberFormat: { week: 'numeric' },
+        firstDay:        1,
+        multiMonthMaxColumns: 4,
         headerToolbar: {
             left:   'prev,next today',
             center: 'title',
-            right:  'dayGridMonth,timeGridWeek,listMonth'
+            right:  'multiMonthYear,dayGridMonth,listMonth'
         },
         buttonText: {
-            today:     "Aujourd'hui",
-            month:     'Mois',
-            week:      'Semaine',
-            list:      'Liste'
+            today:          "Aujourd'hui",
+            year:           'Année',
+            month:          'Mois',
+            list:           'Liste'
+        },
+        views: {
+            multiMonthYear: { buttonText: 'Année' },
+            dayGridMonth:   { buttonText: 'Mois'  },
+            listMonth:      { buttonText: 'Liste' },
         },
         selectable:  true,
         events:      {{ events|json_encode|raw }},
