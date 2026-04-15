@@ -296,9 +296,10 @@ final class LeaveWebController extends AbstractController
             }
         }
 
-        // Pré-remplissage depuis le calendrier (?date=YYYY-MM-DD)
-        $preDate   = $request->query->get('date', '');
-        $formData  = $preDate !== '' ? ['dateDebut' => $preDate, 'dateFin' => $preDate] : [];
+        // Pré-remplissage depuis le calendrier (?dateDebut=…&dateFin=… ou ?date=…)
+        $preDebut = $request->query->get('dateDebut', $request->query->get('date', ''));
+        $preFin   = $request->query->get('dateFin', $preDebut);
+        $formData = $preDebut !== '' ? ['dateDebut' => $preDebut, 'dateFin' => $preFin] : [];
 
         return $this->render('leave/new.html.twig', [
             'form_data'  => $formData,

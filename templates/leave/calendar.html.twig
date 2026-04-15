@@ -140,12 +140,20 @@ document.addEventListener('DOMContentLoaded', function () {
     var modal     = new bootstrap.Modal(document.getElementById('newLeaveModal'));
     var dateLabel = document.getElementById('modalDateLabel');
 
-    function setModalDate(dateStr) {
-        var d = new Date(dateStr + 'T12:00:00');
-        dateLabel.textContent = d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-        document.getElementById('btnConge').href    = baseUrl + '?type=CONGE&date='     + dateStr;
-        document.getElementById('btnRtt').href      = baseUrl + '?type=RTT&date='       + dateStr;
-        document.getElementById('btnHeureSup').href = baseUrl + '?type=HEURE_SUP&date=' + dateStr;
+    var fmt = {day:'numeric', month:'long', year:'numeric'};
+
+    function setModalRange(startStr, endStr) {
+        var start = new Date(startStr + 'T12:00:00');
+        var end   = new Date(endStr   + 'T12:00:00');
+        if (startStr === endStr) {
+            dateLabel.textContent = start.toLocaleDateString('fr-FR', {weekday:'long', ...fmt});
+        } else {
+            dateLabel.textContent = start.toLocaleDateString('fr-FR', fmt) + ' → ' + end.toLocaleDateString('fr-FR', fmt);
+        }
+        var params = '&dateDebut=' + startStr + '&dateFin=' + endStr;
+        document.getElementById('btnConge').href    = baseUrl + '?type=CONGE'     + params;
+        document.getElementById('btnRtt').href      = baseUrl + '?type=RTT'       + params;
+        document.getElementById('btnHeureSup').href = baseUrl + '?type=HEURE_SUP' + params;
     }
 
     var calendarEl = document.getElementById('calendar');
@@ -172,11 +180,17 @@ document.addEventListener('DOMContentLoaded', function () {
             dayGridMonth:   { buttonText: 'Mois'  },
             listMonth:      { buttonText: 'Liste' },
         },
-        selectable:  true,
-        events:      {{ events|json_encode|raw }},
-        dateClick:   function(info) {
-            setModalDate(info.dateStr);
+        selectable:      true,
+        selectMinDistance: 0,
+        events:          {{ events|json_encode|raw }},
+        select: function(info) {
+            // L'end FullCalendar est exclusif → on soustrait 1 jour
+            var endDate = new Date(info.end);
+            endDate.setDate(endDate.getDate() - 1);
+            var endStr = endDate.toISOString().slice(0, 10);
+            setModalRange(info.startStr, endStr);
             modal.show();
+            calendar.unselect();
         },
         eventClick:  function(info) {
             info.jsEvent.preventDefault();
