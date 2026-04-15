@@ -36,11 +36,15 @@ final class SubmitLeaveHandler
         $period = LeavePeriod::fromStrings($command->dateDebut, $command->dateFin);
 
         if ($command->type === LeaveType::RTT) {
-            $days = self::computeWorkingDays($command->dateDebut, $command->dateFin);
-            if ($days <= 0) {
-                throw new \DomainException('La période ne contient aucun jour ouvré (lundi–vendredi).');
+            if ($command->matin || $command->apresMidi) {
+                $leaveHours = new LeaveHours(($command->matin ? 0.5 : 0.0) + ($command->apresMidi ? 0.5 : 0.0));
+            } else {
+                $days = self::computeWorkingDays($command->dateDebut, $command->dateFin);
+                if ($days <= 0) {
+                    throw new \DomainException('La période ne contient aucun jour ouvré (lundi–vendredi).');
+                }
+                $leaveHours = new LeaveHours($days);
             }
-            $leaveHours = new LeaveHours($days);
         } elseif ($command->journeeEntiere || $command->matin || $command->apresMidi) {
             $leaveHours = new LeaveHours(self::computeCreneauHours(
                 $command->dateDebut, $command->matin, $command->apresMidi, $command->journeeEntiere
@@ -105,7 +109,10 @@ final class SubmitLeaveHandler
 
     public static function computeCreneauHours(string $date, bool $matin, bool $apresMidi, bool $journeeEntiere = false): float
     {
-        $dayOfWeek = (int) (new \DateTimeImmutable($date))->format('N'); // 1=lundi
+        $dayOfWeek = (int) (new \DateTimeImmutable($date))->format('N'); // 1=lundi … 7=dimanche
+        if ($dayOfWeek >= 6) {
+            throw new \DomainException('Impossible de poser une absence un samedi ou un dimanche.');
+        }
         if ($journeeEntiere) {
             return $dayOfWeek === 1 ? 8.0 : 7.75;
         }
@@ -135,6 +142,11 @@ final class SubmitLeaveHandler
         $endDate = new \DateTimeImmutable($dateFin);
 
         while ($current->format('Y-m-d') <= $endDate->format('Y-m-d')) {
+            // Ignorer samedi (6) et dimanche (7)
+            if ((int) $current->format('N') >= 6) {
+                $current = $current->modify('+1 day');
+                continue;
+            }
             $dayStr   = $current->format('Y-m-d');
             $isMonday = (int) $current->format('N') === 1;
             $lunchEnd = $isMonday ? '13:30' : '13:45';

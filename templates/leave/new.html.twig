@@ -45,6 +45,24 @@
                 </div>
             </div>
 
+            {% if leave_type.value == 'RTT' %}
+            <div class="mb-3 p-3 border rounded bg-body-secondary">
+                <div class="fw-semibold mb-2 small text-uppercase text-muted">Créneaux</div>
+                <div class="d-flex gap-4 flex-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="matin" name="matin" value="1"
+                               onchange="onRttCreneauChange()">
+                        <label class="form-check-label" for="matin">Matin <span class="text-muted">(0,5 j)</span></label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="apresMidi" name="apresMidi" value="1"
+                               onchange="onRttCreneauChange()">
+                        <label class="form-check-label" for="apresMidi">Après-midi <span class="text-muted">(0,5 j)</span></label>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             {% if leave_type.value != 'RTT' %}
             {# Mode créneaux #}
             <div class="mb-3 p-3 border rounded bg-body-secondary" id="modeCreneau">
@@ -97,9 +115,7 @@
                            readonly placeholder="—">
                     <span class="input-group-text">{{ leave_type.value == 'RTT' ? 'jour(s)' : 'heures' }}</span>
                 </div>
-                <div id="heuresError" class="text-danger small mt-1" style="display:none">
-                    L'heure de fin doit être postérieure à l'heure de début.
-                </div>
+                <div id="heuresError" class="text-danger small mt-1" style="display:none"></div>
             </div>
 
             <div class="mb-4">
@@ -135,6 +151,11 @@ function computeWorkingDays(dateDebut, dateFin) {
     return days;
 }
 
+function isWeekend(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00').getDay();
+    return d === 0 || d === 6;
+}
+
 function computeWorkingHours(dateDebut, heureDebut, dateFin, heureFin) {
     function ds(d) {
         return d.getFullYear() + '-' +
@@ -149,6 +170,12 @@ function computeWorkingHours(dateDebut, heureDebut, dateFin, heureFin) {
     let current = new Date(dateDebut + 'T12:00:00');
 
     while (ds(current) <= dateFin) {
+        // Ignorer samedi (6) et dimanche (0)
+        const dow = current.getDay();
+        if (dow === 0 || dow === 6) {
+            current.setDate(current.getDate() + 1);
+            continue;
+        }
         const d        = ds(current);
         const isMonday = current.getDay() === 1;
         const lunchEnd = isMonday ? '13:30' : '13:45';
@@ -181,10 +208,18 @@ function isMonday(dateStr) {
 
 function onDateChange() {
     const dateDebut = document.getElementById('dateDebut').value;
-    const monday = isMonday(dateDebut);
-    document.getElementById('apresMidiLabel').textContent = monday ? '(4 h)' : '(3,75 h)';
-    document.getElementById('journeeLabel').textContent   = monday ? '(8 h)' : '(7,75 h)';
-    onCreneauChange();
+    if (isRTT) {
+        const matin     = document.getElementById('matin')?.checked;
+        const apresMidi = document.getElementById('apresMidi')?.checked;
+        if ((matin || apresMidi) && dateDebut) {
+            document.getElementById('dateFin').value = dateDebut;
+        }
+    } else {
+        const monday = isMonday(dateDebut);
+        document.getElementById('apresMidiLabel').textContent = monday ? '(4 h)' : '(3,75 h)';
+        document.getElementById('journeeLabel').textContent   = monday ? '(8 h)' : '(7,75 h)';
+        onCreneauChange();
+    }
     calculateHours();
 }
 
@@ -235,13 +270,20 @@ function calculateHours() {
     const btn       = document.getElementById('submitBtn');
 
     errDiv.style.display = 'none';
+    errDiv.textContent   = '';
 
     if (isRTT) {
+        const matin     = document.getElementById('matin')?.checked;
+        const apresMidi = document.getElementById('apresMidi')?.checked;
+        if (matin || apresMidi) {
+            if (!dateDebut) { display.value = ''; btn.disabled = true; return; }
+            display.value = (matin ? 0.5 : 0) + (apresMidi ? 0.5 : 0);
+            btn.disabled = false;
+            return;
+        }
         if (!dateDebut || !dateFin) { display.value = ''; btn.disabled = true; return; }
         const days = computeWorkingDays(dateDebut, dateFin);
-        if (days <= 0) {
-            display.value = ''; btn.disabled = true; return;
-        }
+        if (days <= 0) { display.value = ''; btn.disabled = true; return; }
         display.value = days;
         btn.disabled = false;
         return;
@@ -253,6 +295,13 @@ function calculateHours() {
 
     if (journeeEntiere || matin || apresMidi) {
         if (!dateDebut) { display.value = ''; btn.disabled = true; return; }
+        if (isWeekend(dateDebut)) {
+            display.value = '';
+            errDiv.textContent = 'Impossible de poser une absence un samedi ou un dimanche.';
+            errDiv.style.display = 'block';
+            btn.disabled = true;
+            return;
+        }
         let hours = 0;
         if (journeeEntiere) {
             hours = isMonday(dateDebut) ? 8 : 7.75;
@@ -272,14 +321,45 @@ function calculateHours() {
         display.value = ''; btn.disabled = true; return;
     }
 
+    if (isWeekend(dateDebut) || isWeekend(dateFin)) {
+        display.value = '';
+        errDiv.textContent = 'Impossible de poser une absence un samedi ou un dimanche.';
+        errDiv.style.display = 'block';
+        btn.disabled = true;
+        return;
+    }
+
     const hours = computeWorkingHours(dateDebut, heureDebut, dateFin, heureFin);
 
     if (hours <= 0) {
-        display.value = ''; errDiv.style.display = 'block'; btn.disabled = true;
+        display.value = '';
+        errDiv.textContent = 'L\'heure de fin doit être postérieure à l\'heure de début.';
+        errDiv.style.display = 'block';
+        btn.disabled = true;
     } else {
         display.value = parseFloat(hours.toFixed(2));
         btn.disabled = false;
     }
+}
+
+function onRttCreneauChange() {
+    const matin        = document.getElementById('matin').checked;
+    const apresMidi    = document.getElementById('apresMidi').checked;
+    const dateFinInput = document.getElementById('dateFin');
+    const dateDebut    = document.getElementById('dateDebut').value;
+    const star         = document.getElementById('dateFinStar');
+
+    if (matin || apresMidi) {
+        if (dateDebut) dateFinInput.value = dateDebut;
+        dateFinInput.readOnly = true;
+        dateFinInput.removeAttribute('required');
+        star.style.display = 'none';
+    } else {
+        dateFinInput.readOnly = false;
+        dateFinInput.setAttribute('required', 'required');
+        star.style.display = '';
+    }
+    calculateHours();
 }
 
 document.addEventListener('DOMContentLoaded', () => { if (!isRTT) onDateChange(); calculateHours(); });
