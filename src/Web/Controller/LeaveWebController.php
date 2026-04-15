@@ -647,10 +647,10 @@ final class LeaveWebController extends AbstractController
         $events = [];
         foreach ($leaves as $leave) {
             $baseColor = $typeColors[$leave->getType()->value] ?? '#6c757d';
-            $alpha     = match ($leave->getStatutValue()) {
-                'APPROVED'       => '',
-                'VALIDATED_CHEF' => 'BB',
-                default          => '66', // PENDING
+            [$bgColor, $borderColor] = match ($leave->getStatutValue()) {
+                'APPROVED'       => [$baseColor,  $baseColor],   // plein = couleur du type
+                'VALIDATED_CHEF' => ['#9e9e9e',   '#757575'],    // gris
+                default          => ['#e53935',   '#b71c1c'],    // rouge (PENDING)
             };
             $endDate = (new \DateTimeImmutable($leave->getDateFinFormatted()))->modify('+1 day')->format('Y-m-d');
             $prefix  = ($isRh || $isChef) ? ($agentNames[$leave->getUserId()] ?? '?') . ' — ' : '';
@@ -660,8 +660,8 @@ final class LeaveWebController extends AbstractController
                 'start'           => $leave->getDateDebutFormatted(),
                 'end'             => $endDate,
                 'url'             => $this->generateUrl('app_leave_show', ['id' => $leave->getId()]),
-                'backgroundColor' => $baseColor . $alpha,
-                'borderColor'     => $baseColor,
+                'backgroundColor' => $bgColor,
+                'borderColor'     => $borderColor,
                 'textColor'       => '#fff',
             ];
         }

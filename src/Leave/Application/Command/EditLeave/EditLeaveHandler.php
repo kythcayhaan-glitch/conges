@@ -39,11 +39,15 @@ final class EditLeaveHandler
         $oldHours = $leaveRequest->getHeures();
 
         if ($leaveRequest->getType() === LeaveType::RTT) {
-            $days = SubmitLeaveHandler::computeWorkingDays($command->dateDebut, $command->dateFin);
-            if ($days <= 0) {
-                throw new \DomainException('La période ne contient aucun jour ouvré (lundi–vendredi).');
+            if ($command->matin || $command->apresMidi) {
+                $newHours = new LeaveHours(($command->matin ? 0.5 : 0.0) + ($command->apresMidi ? 0.5 : 0.0));
+            } else {
+                $days = SubmitLeaveHandler::computeWorkingDays($command->dateDebut, $command->dateFin);
+                if ($days <= 0) {
+                    throw new \DomainException('La période ne contient aucun jour ouvré (lundi–vendredi).');
+                }
+                $newHours = new LeaveHours($days);
             }
-            $newHours = new LeaveHours($days);
         } elseif ($command->journeeEntiere || $command->matin || $command->apresMidi) {
             $newHours = new LeaveHours(SubmitLeaveHandler::computeCreneauHours(
                 $command->dateDebut, $command->matin, $command->apresMidi, $command->journeeEntiere
