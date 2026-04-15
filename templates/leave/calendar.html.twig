@@ -210,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
         eventDidMount: function(info) {
             info.el.title = info.event.title;
         },
+        moreLinkText:   function(n) { return '+' + n + ' autre' + (n > 1 ? 's' : ''); },
         height:         'auto',
         fixedWeekCount: false,
     });
