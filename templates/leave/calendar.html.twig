@@ -79,6 +79,9 @@
 /* ── Vue annuelle : grille 4 colonnes × 3 lignes ── */
 .fc-multimonth-multicol .fc-multimonth-month { min-width: 0; }
 
+/* ── Jours fériés (fond jaune pâle) ── */
+.fc .fc-holiday { opacity: 0.6; }
+
 /* ── Toolbar ── */
 .fc .fc-toolbar-title { font-size: 16px; font-weight: 700; color: #1565c0; }
 .fc .fc-button-primary {
@@ -141,6 +144,48 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/fr.global.min.js"></script>
 <script>
+// ── Jours fériés ─────────────────────────────────────────────────────────────
+function easterDate(year) {
+    const a = year % 19, b = Math.floor(year/100), c = year % 100;
+    const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+    const g = Math.floor((b-f+1)/3);
+    const h = (19*a + b - d - g + 15) % 30;
+    const i = Math.floor(c/4), k = c % 4;
+    const l = (32 + 2*e + 2*i - h - k) % 7;
+    const m = Math.floor((a + 11*h + 22*l) / 451);
+    const month = Math.floor((h + l - 7*m + 114) / 31);
+    const day   = ((h + l - 7*m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+}
+function holidayEvents(yearFrom, yearTo) {
+    const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const off = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
+    const labels = {
+        '01-01': "Jour de l'An", '05-01': 'Fête du Travail', '05-08': 'Victoire 1945',
+        '07-14': 'Fête Nationale', '08-15': 'Assomption',
+        '11-01': 'Toussaint',    '11-11': 'Armistice',       '12-25': 'Noël'
+    };
+    const events = [];
+    for (let y = yearFrom; y <= yearTo; y++) {
+        const easter = easterDate(y);
+        const fixed = [
+            [new Date(y,0,1), "Jour de l'An"],   [new Date(y,4,1), 'Fête du Travail'],
+            [new Date(y,4,8), 'Victoire 1945'],   [new Date(y,6,14), 'Fête Nationale'],
+            [new Date(y,7,15), 'Assomption'],     [new Date(y,10,1), 'Toussaint'],
+            [new Date(y,10,11), 'Armistice'],     [new Date(y,11,25), 'Noël'],
+            [off(easter,1), 'Lundi de Pâques'],   [off(easter,39), 'Ascension'],
+            [off(easter,50), 'Lundi de Pentecôte'],
+        ];
+        fixed.forEach(([d, label]) => {
+            const ds = fmt(d);
+            const endDs = fmt(off(d, 1));
+            events.push({ title: label, start: ds, end: endDs, display: 'background', backgroundColor: '#fff3cd', classNames: ['fc-holiday'] });
+        });
+    }
+    return events;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', function () {
     var baseUrl   = {{ path('app_leave_new')|json_encode|raw }};
     var modal     = new bootstrap.Modal(document.getElementById('newLeaveModal'));
@@ -188,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         selectable:      true,
         selectMinDistance: 0,
-        events:          {{ events|json_encode|raw }},
+        events:          {{ events|json_encode|raw }}.concat(holidayEvents(new Date().getFullYear() - 1, new Date().getFullYear() + 2)),
         select: function(info) {
             // L'end FullCalendar est exclusif → on soustrait 1 jour en heure locale
             var p = info.endStr.split('-');

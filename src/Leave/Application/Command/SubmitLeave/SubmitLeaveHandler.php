@@ -93,13 +93,68 @@ final class SubmitLeaveHandler
         return $leaveRequestId;
     }
 
+    // ── Jours fériés ────────────────────────────────────────────────────────────
+
+    private static function easterDate(int $year): \DateTimeImmutable
+    {
+        $a = $year % 19;
+        $b = intdiv($year, 100);
+        $c = $year % 100;
+        $d = intdiv($b, 4);
+        $e = $b % 4;
+        $f = intdiv($b + 8, 25);
+        $g = intdiv($b - $f + 1, 3);
+        $h = (19 * $a + $b - $d - $g + 15) % 30;
+        $i = intdiv($c, 4);
+        $k = $c % 4;
+        $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+        $m = intdiv($a + 11 * $h + 22 * $l, 451);
+        $month = intdiv($h + $l - 7 * $m + 114, 31);
+        $day   = (($h + $l - 7 * $m + 114) % 31) + 1;
+        return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+    }
+
+    /** @return array<string, true> date 'Y-m-d' → true */
+    public static function getPublicHolidays(int $year): array
+    {
+        $easter = self::easterDate($year);
+        return array_fill_keys([
+            sprintf('%d-01-01', $year),                           // Jour de l'An
+            $easter->modify('+1 day')->format('Y-m-d'),           // Lundi de Pâques
+            sprintf('%d-05-01', $year),                           // Fête du Travail
+            sprintf('%d-05-08', $year),                           // Victoire 1945
+            $easter->modify('+39 days')->format('Y-m-d'),         // Ascension
+            $easter->modify('+50 days')->format('Y-m-d'),         // Lundi de Pentecôte
+            sprintf('%d-07-14', $year),                           // Fête Nationale
+            sprintf('%d-08-15', $year),                           // Assomption
+            sprintf('%d-11-01', $year),                           // Toussaint
+            sprintf('%d-11-11', $year),                           // Armistice
+            sprintf('%d-12-25', $year),                           // Noël
+        ], true);
+    }
+
+    private static function holidaysForRange(string $dateDebut, string $dateFin): array
+    {
+        $holidays = [];
+        $yearFrom = (int) (new \DateTimeImmutable($dateDebut))->format('Y');
+        $yearTo   = (int) (new \DateTimeImmutable($dateFin))->format('Y');
+        for ($y = $yearFrom; $y <= $yearTo; $y++) {
+            $holidays += self::getPublicHolidays($y);
+        }
+        return $holidays;
+    }
+
+    // ── Calculs ─────────────────────────────────────────────────────────────────
+
     public static function computeWorkingDays(string $dateDebut, string $dateFin): float
     {
-        $current = new \DateTimeImmutable($dateDebut);
-        $end     = new \DateTimeImmutable($dateFin);
-        $days    = 0;
+        $current  = new \DateTimeImmutable($dateDebut);
+        $end      = new \DateTimeImmutable($dateFin);
+        $holidays = self::holidaysForRange($dateDebut, $dateFin);
+        $days     = 0;
         while ($current->format('Y-m-d') <= $end->format('Y-m-d')) {
-            if ((int) $current->format('N') <= 5) { // lundi=1 … vendredi=5
+            $dow = (int) $current->format('N');
+            if ($dow <= 5 && !isset($holidays[$current->format('Y-m-d')])) {
                 $days++;
             }
             $current = $current->modify('+1 day');
@@ -112,6 +167,10 @@ final class SubmitLeaveHandler
         $dayOfWeek = (int) (new \DateTimeImmutable($date))->format('N'); // 1=lundi … 7=dimanche
         if ($dayOfWeek >= 6) {
             throw new \DomainException('Impossible de poser une absence un samedi ou un dimanche.');
+        }
+        $holidays = self::getPublicHolidays((int) (new \DateTimeImmutable($date))->format('Y'));
+        if (isset($holidays[$date])) {
+            throw new \DomainException('Impossible de poser une absence un jour férié.');
         }
         if ($journeeEntiere) {
             return $dayOfWeek === 1 ? 8.0 : 7.75;
@@ -137,13 +196,14 @@ final class SubmitLeaveHandler
             return 0.0;
         }
 
-        $total   = 0.0;
-        $current = new \DateTimeImmutable($dateDebut);
-        $endDate = new \DateTimeImmutable($dateFin);
+        $total    = 0.0;
+        $current  = new \DateTimeImmutable($dateDebut);
+        $endDate  = new \DateTimeImmutable($dateFin);
+        $holidays = self::holidaysForRange($dateDebut, $dateFin);
 
         while ($current->format('Y-m-d') <= $endDate->format('Y-m-d')) {
-            // Ignorer samedi (6) et dimanche (7)
-            if ((int) $current->format('N') >= 6) {
+            // Ignorer samedi (6), dimanche (7) et jours fériés
+            if ((int) $current->format('N') >= 6 || isset($holidays[$current->format('Y-m-d')])) {
                 $current = $current->modify('+1 day');
                 continue;
             }

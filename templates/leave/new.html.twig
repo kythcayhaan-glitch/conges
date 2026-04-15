@@ -137,15 +137,52 @@
 <script>
 const isRTT = {{ leave_type.value == 'RTT' ? 'true' : 'false' }};
 
+// ── Jours fériés ────────────────────────────────────────────────────────────
+function easterDate(year) {
+    const a = year % 19, b = Math.floor(year/100), c = year % 100;
+    const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+    const g = Math.floor((b-f+1)/3);
+    const h = (19*a + b - d - g + 15) % 30;
+    const i = Math.floor(c/4), k = c % 4;
+    const l = (32 + 2*e + 2*i - h - k) % 7;
+    const m = Math.floor((a + 11*h + 22*l) / 451);
+    const month = Math.floor((h + l - 7*m + 114) / 31);
+    const day   = ((h + l - 7*m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+}
+function getPublicHolidays(year) {
+    const easter = easterDate(year);
+    const off = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r; };
+    const fmt = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const h = {};
+    [new Date(year,0,1), off(easter,1), new Date(year,4,1), new Date(year,4,8),
+     off(easter,39), off(easter,50), new Date(year,6,14), new Date(year,7,15),
+     new Date(year,10,1), new Date(year,10,11), new Date(year,11,25)
+    ].forEach(d => { h[fmt(d)] = true; });
+    return h;
+}
+function isNonWorkingDay(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00').getDay();
+    if (d === 0 || d === 6) return true;
+    const year = parseInt(dateStr.substring(0,4));
+    return getPublicHolidays(year)[dateStr] === true;
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 function computeWorkingDays(dateDebut, dateFin) {
     if (!dateDebut || !dateFin) return 0;
+    const yearFrom = parseInt(dateDebut.substring(0,4));
+    const yearTo   = parseInt(dateFin.substring(0,4));
+    let holidays = {};
+    for (let y = yearFrom; y <= yearTo; y++) Object.assign(holidays, getPublicHolidays(y));
     let current = new Date(dateDebut + 'T12:00:00');
     const end   = new Date(dateFin   + 'T12:00:00');
     if (end < current) return 0;
     let days = 0;
     while (current <= end) {
-        const dow = current.getDay(); // 0=dim, 6=sam
-        if (dow !== 0 && dow !== 6) days++;
+        const dow = current.getDay();
+        const ds  = current.getFullYear()+'-'+String(current.getMonth()+1).padStart(2,'0')+'-'+String(current.getDate()).padStart(2,'0');
+        if (dow !== 0 && dow !== 6 && !holidays[ds]) days++;
         current.setDate(current.getDate() + 1);
     }
     return days;
@@ -166,13 +203,18 @@ function computeWorkingHours(dateDebut, heureDebut, dateFin, heureFin) {
     const end   = new Date(dateFin   + 'T' + heureFin);
     if (end <= start) return -1;
 
+    const yearFrom = parseInt(dateDebut.substring(0,4));
+    const yearTo   = parseInt(dateFin.substring(0,4));
+    let holidays = {};
+    for (let y = yearFrom; y <= yearTo; y++) Object.assign(holidays, getPublicHolidays(y));
+
     let total   = 0;
     let current = new Date(dateDebut + 'T12:00:00');
 
     while (ds(current) <= dateFin) {
-        // Ignorer samedi (6) et dimanche (0)
+        // Ignorer samedi, dimanche et jours fériés
         const dow = current.getDay();
-        if (dow === 0 || dow === 6) {
+        if (dow === 0 || dow === 6 || holidays[ds(current)]) {
             current.setDate(current.getDate() + 1);
             continue;
         }
@@ -295,9 +337,11 @@ function calculateHours() {
 
     if (journeeEntiere || matin || apresMidi) {
         if (!dateDebut) { display.value = ''; btn.disabled = true; return; }
-        if (isWeekend(dateDebut)) {
+        if (isNonWorkingDay(dateDebut)) {
             display.value = '';
-            errDiv.textContent = 'Impossible de poser une absence un samedi ou un dimanche.';
+            errDiv.textContent = isWeekend(dateDebut)
+                ? 'Impossible de poser une absence un samedi ou un dimanche.'
+                : 'Impossible de poser une absence un jour férié.';
             errDiv.style.display = 'block';
             btn.disabled = true;
             return;
@@ -321,9 +365,12 @@ function calculateHours() {
         display.value = ''; btn.disabled = true; return;
     }
 
-    if (isWeekend(dateDebut) || isWeekend(dateFin)) {
+    if (isNonWorkingDay(dateDebut) || isNonWorkingDay(dateFin)) {
         display.value = '';
-        errDiv.textContent = 'Impossible de poser une absence un samedi ou un dimanche.';
+        const badDate = isNonWorkingDay(dateDebut) ? dateDebut : dateFin;
+        errDiv.textContent = isWeekend(badDate)
+            ? 'Impossible de poser une absence un samedi ou un dimanche.'
+            : 'Impossible de poser une absence un jour férié.';
         errDiv.style.display = 'block';
         btn.disabled = true;
         return;
