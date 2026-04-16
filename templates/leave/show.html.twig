@@ -128,7 +128,16 @@
         {% if is_granted('ROLE_RH') and not is_granted('ROLE_ADMIN') and leave.validatedByChef %}
         <div class="card shadow-sm mt-3">
             <div class="card-header fw-semibold"><i class="bi bi-check2-square me-1"></i>Validation RH (2ème étape)</div>
-            <div class="card-body d-flex gap-2 flex-wrap">
+            <div class="card-body">
+            {% if validated_by_chef_name %}
+            <p class="text-muted small mb-3">
+                <i class="bi bi-person-check me-1"></i>Validé par le chef de service : <strong>{{ validated_by_chef_name }}</strong>
+                {% if validated_by_chef_at %}
+                    le <strong>{{ validated_by_chef_at|date('d/m/Y') }}</strong> à <strong>{{ validated_by_chef_at|date('H:i') }}</strong>
+                {% endif %}
+            </p>
+            {% endif %}
+            <div class="d-flex gap-2 flex-wrap">
                 <form method="post" action="{{ path('app_leave_approve', {id: leave.id}) }}" class="d-inline">
                     <input type="hidden" name="_token" value="{{ csrf_token('leave_approve_' ~ leave.id) }}">
                     <button type="submit" class="btn btn-success">
@@ -139,6 +148,7 @@
                     <i class="bi bi-x-lg me-1"></i>Rejeter
                 </button>
             </div>
+            </div>
         </div>
         {% endif %}
 
@@ -146,7 +156,16 @@
         {% if is_granted('ROLE_ADMIN') and leave.validatedByChef %}
         <div class="card shadow-sm mt-3">
             <div class="card-header fw-semibold"><i class="bi bi-check2-square me-1"></i>Validation RH (2ème étape)</div>
-            <div class="card-body d-flex gap-2 flex-wrap">
+            <div class="card-body">
+            {% if validated_by_chef_name %}
+            <p class="text-muted small mb-3">
+                <i class="bi bi-person-check me-1"></i>Validé par le chef de service : <strong>{{ validated_by_chef_name }}</strong>
+                {% if validated_by_chef_at %}
+                    le <strong>{{ validated_by_chef_at|date('d/m/Y') }}</strong> à <strong>{{ validated_by_chef_at|date('H:i') }}</strong>
+                {% endif %}
+            </p>
+            {% endif %}
+            <div class="d-flex gap-2 flex-wrap">
                 <form method="post" action="{{ path('app_leave_approve', {id: leave.id}) }}" class="d-inline">
                     <input type="hidden" name="_token" value="{{ csrf_token('leave_approve_' ~ leave.id) }}">
                     <button type="submit" class="btn btn-success">
@@ -156,6 +175,7 @@
                 <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
                     <i class="bi bi-x-lg me-1"></i>Rejeter
                 </button>
+            </div>
             </div>
         </div>
         {% endif %}

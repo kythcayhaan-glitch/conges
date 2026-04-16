@@ -354,18 +354,18 @@ final class LeaveWebController extends AbstractController
             }
         }
 
-        // Auteur de la validation chef (affiché pour tous les rôles)
+        // Auteur et date de la validation chef (affiché pour RH/Admin)
         $validatedByChefName = null;
-        if ($leave->isValidatedByChef()) {
-            $allLogs = $this->leaveRepository->findAuditLogsByLeaveRequestId($id);
-            foreach (array_reverse($allLogs) as $log) {
-                if ($log->getNouveauStatut()->value === 'VALIDATED_CHEF' && $log->getAuteurId()) {
-                    $author = $this->em->getRepository(User::class)->find($log->getAuteurId());
-                    if ($author instanceof User) {
-                        $validatedByChefName = $author->getNomComplet() ?? $author->getUsername();
-                    }
-                    break;
+        $validatedByChefAt   = null;
+        $allLogs = $this->leaveRepository->findAuditLogsByLeaveRequestId($id);
+        foreach (array_reverse($allLogs) as $log) {
+            if ($log->getNouveauStatut()->value === 'VALIDATED_CHEF' && $log->getAuteurId()) {
+                $author = $this->em->getRepository(User::class)->find($log->getAuteurId());
+                if ($author instanceof User) {
+                    $validatedByChefName = $author->getNomComplet() ?? $author->getUsername();
                 }
+                $validatedByChefAt = $log->getCreatedAt();
+                break;
             }
         }
 
@@ -377,6 +377,7 @@ final class LeaveWebController extends AbstractController
             'is_chef'                => $isChef,
             'can_validate_chef'      => $canValidateChef,
             'validated_by_chef_name' => $validatedByChefName,
+            'validated_by_chef_at'   => $validatedByChefAt,
         ]);
     }
 

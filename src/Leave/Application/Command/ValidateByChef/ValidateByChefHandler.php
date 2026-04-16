@@ -8,6 +8,8 @@ use App\Leave\Domain\Entity\LeaveAuditLog;
 use App\Leave\Domain\Exception\LeaveRequestNotFoundException;
 use App\Leave\Domain\Repository\LeaveRequestRepositoryInterface;
 use App\Leave\Domain\ValueObject\LeaveStatus;
+use App\Leave\Infrastructure\Notification\LeaveMailNotifier;
+use App\Security\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Uid\Uuid;
@@ -18,6 +20,7 @@ final class ValidateByChefHandler
     public function __construct(
         private readonly LeaveRequestRepositoryInterface $leaveRequestRepository,
         private readonly EntityManagerInterface          $em,
+        private readonly LeaveMailNotifier               $notifier,
     ) {
     }
 
@@ -42,5 +45,15 @@ final class ValidateByChefHandler
             commentaire:    $command->commentaire ?? 'Validée par le chef de service.',
             auteurId:       $command->validatedByUserId,
         ));
+
+        $user = $this->em->getRepository(User::class)->find($leaveRequest->getUserId());
+
+        if ($user !== null) {
+            try {
+                $this->notifier->notifyValidatedByChef($user, $leaveRequest);
+            } catch (\Throwable) {
+                // L'email est non bloquant
+            }
+        }
     }
 }

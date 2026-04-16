@@ -50,6 +50,21 @@ final class LeaveMailNotifier
         );
     }
 
+    public function notifyValidatedByChef(User $agent, LeaveRequest $leave): void
+    {
+        $this->send(
+            $agent,
+            'Votre demande de congé a été validée par votre responsable',
+            sprintf(
+                "Bonjour %s,\n\nVotre demande de congé du %s au %s (%.2f h) a été validée par votre chef de service.\nElle est désormais en attente de validation par le service RH.\n\nCordialement,\nLe service RH",
+                $agent->getNomComplet() ?? $agent->getUsername(),
+                (new \DateTimeImmutable($leave->getDateDebutFormatted()))->format('d/m/Y'),
+                (new \DateTimeImmutable($leave->getDateFinFormatted()))->format('d/m/Y'),
+                $leave->getHeuresValue(),
+            )
+        );
+    }
+
     public function notifyCancelled(User $agent, LeaveRequest $leave): void
     {
         $this->send(
