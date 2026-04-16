@@ -16,7 +16,12 @@
     <div>
         {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
         {% if validated_by_chef_name is defined and validated_by_chef_name %}
-            <small class="text-muted d-block mt-1">par {{ validated_by_chef_name }}</small>
+            <small class="text-muted d-block mt-1">
+                par {{ validated_by_chef_name }}
+                {% if validated_by_chef_at is defined and validated_by_chef_at %}
+                    le {{ validated_by_chef_at|date('d/m/Y') }} à {{ validated_by_chef_at|date('H:i') }}
+                {% endif %}
+            </small>
         {% endif %}
     </div>
 </div>
@@ -216,10 +221,10 @@
         {% endif %}
     </div>
 
-    {% if is_granted('ROLE_RH') and audit_logs is not empty %}
+    {% if audit_logs is not empty %}
     <div class="col-md-6">
         <div class="card shadow-sm">
-            <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1"></i>Historique</div>
+            <div class="card-header fw-semibold"><i class="bi bi-clock-history me-1"></i>Suivi de la demande</div>
             <ul class="list-group list-group-flush">
                 {% for log in audit_logs %}
                 <li class="list-group-item">

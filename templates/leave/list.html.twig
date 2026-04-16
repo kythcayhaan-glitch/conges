@@ -8,8 +8,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">
         <i class="bi bi-{{ (not all_types and leave_type.value == 'RTT') ? 'clock' : 'calendar3' }} me-2"></i>
-        {% if all_types %}
+        {% if all_types and is_granted('ROLE_RH') %}
             Toutes les demandes — Tous types
+        {% elseif all_types %}
+            Mes demandes — Tous types
         {% elseif is_granted('ROLE_RH') %}
             Toutes les demandes — {{ leave_type.label() }}
         {% else %}
@@ -141,8 +143,11 @@
                             {% include 'components/leave_status_badge.html.twig' with {leave: leave} %}
                             {% if leave.statutValue in ['APPROVED', 'REJECTED', 'VALIDATED_CHEF'] %}
                                 {% set log = last_logs[leave.id] ?? null %}
-                                {% if log and log.auteurId %}
-                                    <br><small class="text-muted">par {{ user_emails[log.auteurId] ?? log.auteurId }}</small>
+                                {% if log %}
+                                    <br><small class="text-muted">
+                                        {% if log.auteurId %}par {{ user_emails[log.auteurId] ?? log.auteurId }} {% endif %}
+                                        le {{ log.createdAt|date('d/m/Y') }} à {{ log.createdAt|date('H:i') }}
+                                    </small>
                                 {% endif %}
                             {% endif %}
                         </td>

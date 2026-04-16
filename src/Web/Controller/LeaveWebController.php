@@ -43,7 +43,7 @@ final class LeaveWebController extends AbstractController
         $user      = $this->getUser();
         $leaves    = [];
         $typeParam = strtoupper($request->query->get('type', 'CONGE'));
-        $allTypes  = $typeParam === 'ALL' && $this->isGranted('ROLE_RH');
+        $allTypes  = $typeParam === 'ALL';
         $leaveType = $allTypes ? null : (LeaveType::tryFrom($typeParam) ?? LeaveType::CONGE);
 
         $isChef = $this->isGranted('ROLE_CHEF_SERVICE') && !$this->isGranted('ROLE_RH');
@@ -323,12 +323,13 @@ final class LeaveWebController extends AbstractController
 
         $leaveUser = $this->em->getRepository(User::class)->find($leave->getUserId());
 
-        $isChef = $this->isGranted('ROLE_CHEF_SERVICE');
+        $isChef      = $this->isGranted('ROLE_CHEF_SERVICE');
+        $currentUser = $this->getUser();
+        $isOwner     = $currentUser instanceof User && $currentUser->getId() === $leave->getUserId();
 
         // Vérifie que le chef est bien du même service que l'agent
         $canValidateChef = false;
         if ($isChef) {
-            $currentUser = $this->getUser();
             if ($currentUser instanceof User
                 && !empty($currentUser->getServiceNumbers())
                 && $leaveUser instanceof User
@@ -339,13 +340,13 @@ final class LeaveWebController extends AbstractController
             }
         }
 
-        $auditLogs = $this->isGranted('ROLE_RH') || $isChef
+        $auditLogs = ($this->isGranted('ROLE_RH') || $isChef || $isOwner)
             ? $this->leaveRepository->findAuditLogsByLeaveRequestId($id)
             : [];
 
         $rejectionLog  = null;
         if ($leave->isRejected()) {
-            $logs = $this->leaveRepository->findAuditLogsByLeaveRequestId($id);
+            $logs = $auditLogs ?: $this->leaveRepository->findAuditLogsByLeaveRequestId($id);
             foreach (array_reverse($logs) as $log) {
                 if ($log->getNouveauStatut()->value === 'REJECTED' && $log->getCommentaire()) {
                     $rejectionLog = $log;
