@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Web\Controller;
 
 use App\Leave\Domain\Repository\LeaveRequestRepositoryInterface;
+use App\Leave\Domain\ValueObject\LeaveStatus;
+use App\Leave\Domain\ValueObject\LeaveType;
 use App\Security\Entity\User;
 use App\Shared\Domain\ValueObject\LeaveBalance;
 use Doctrine\ORM\EntityManagerInterface;
@@ -164,9 +166,24 @@ final class AgentWebController extends AbstractController
             return $this->redirectToRoute('app_agents_show', ['id' => $id]);
         }
 
-        $user->applyLeaveBalance(new LeaveBalance($congeBalance));
-        $user->applyRttBalance(new LeaveBalance($rttBalance));
-        $user->applyHeureSupBalance(new LeaveBalance($heureSupBalance));
+        $approvedLeaves   = $this->leaveRepository->findByUserIdAndStatus($user->getId(), LeaveStatus::APPROVED);
+        $usedConge        = 0.0;
+        $usedRtt          = 0.0;
+        $usedHeureSup     = 0.0;
+        foreach ($approvedLeaves as $leave) {
+            match ($leave->getType()) {
+                LeaveType::RTT       => $usedRtt      += $leave->getHeures()->getValue(),
+                LeaveType::HEURE_SUP => $usedHeureSup += $leave->getHeures()->getValue(),
+                default              => $usedConge    += $leave->getHeures()->getValue(),
+            };
+        }
+
+        $user->applyInitialLeaveBalance(new LeaveBalance($congeBalance));
+        $user->applyLeaveBalance(new LeaveBalance(max(0.0, $congeBalance - $usedConge)));
+        $user->applyInitialRttBalance(new LeaveBalance($rttBalance));
+        $user->applyRttBalance(new LeaveBalance(max(0.0, $rttBalance - $usedRtt)));
+        $user->applyInitialHeureSupBalance(new LeaveBalance($heureSupBalance));
+        $user->applyHeureSupBalance(new LeaveBalance(max(0.0, $heureSupBalance - $usedHeureSup)));
         $this->em->flush();
 
         $this->addFlash('success', 'Soldes mis à jour.');

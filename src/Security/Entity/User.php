@@ -34,11 +34,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'float', options: ['default' => 0.0])]
     private float $leaveBalanceValue = 0.0;
 
+    #[ORM\Column(type: 'float', name: 'initial_leave_balance_value', options: ['default' => 0.0])]
+    private float $initialLeaveBalanceValue = 0.0;
+
     #[ORM\Column(type: 'float', name: 'rtt_balance_value', options: ['default' => 0.0])]
     private float $rttBalanceValue = 0.0;
 
+    #[ORM\Column(type: 'float', name: 'initial_rtt_balance_value', options: ['default' => 0.0])]
+    private float $initialRttBalanceValue = 0.0;
+
     #[ORM\Column(type: 'float', name: 'heure_sup_balance_value', options: ['default' => 0.0])]
     private float $heureSupBalanceValue = 0.0;
+
+    #[ORM\Column(type: 'float', name: 'initial_heure_sup_balance_value', options: ['default' => 0.0])]
+    private float $initialHeureSupBalanceValue = 0.0;
 
     /** @var string[] */
     #[ORM\Column(type: 'json')]
@@ -128,6 +137,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->updatedAt         = new \DateTimeImmutable();
     }
 
+    public function getInitialLeaveBalance(): LeaveBalance
+    {
+        return new LeaveBalance($this->initialLeaveBalanceValue);
+    }
+
+    public function applyInitialLeaveBalance(LeaveBalance $balance): void
+    {
+        $this->initialLeaveBalanceValue = $balance->getValue();
+        $this->updatedAt                = new \DateTimeImmutable();
+    }
+
     public function getRttBalance(): LeaveBalance
     {
         return new LeaveBalance($this->rttBalanceValue);
@@ -139,6 +159,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->updatedAt       = new \DateTimeImmutable();
     }
 
+    public function getInitialRttBalance(): LeaveBalance
+    {
+        return new LeaveBalance($this->initialRttBalanceValue);
+    }
+
+    public function applyInitialRttBalance(LeaveBalance $balance): void
+    {
+        $this->initialRttBalanceValue = $balance->getValue();
+        $this->updatedAt              = new \DateTimeImmutable();
+    }
+
     public function getHeureSupBalance(): LeaveBalance
     {
         return new LeaveBalance($this->heureSupBalanceValue);
@@ -148,6 +179,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->heureSupBalanceValue = $balance->getValue();
         $this->updatedAt            = new \DateTimeImmutable();
+    }
+
+    public function getInitialHeureSupBalance(): LeaveBalance
+    {
+        return new LeaveBalance($this->initialHeureSupBalanceValue);
+    }
+
+    public function applyInitialHeureSupBalance(LeaveBalance $balance): void
+    {
+        $this->initialHeureSupBalanceValue = $balance->getValue();
+        $this->updatedAt                   = new \DateTimeImmutable();
     }
 
     /** @return string[] */

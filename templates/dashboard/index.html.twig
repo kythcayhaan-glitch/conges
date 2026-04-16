@@ -21,6 +21,7 @@
                         <span class="display-6 fw-bold text-primary">{{ current_user.leaveBalance.value|round(2) }}</span>
                         <span class="text-muted mb-1">h</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialLeaveBalance.value|round(2) }} h</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'CONGE'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande de congé
@@ -37,6 +38,7 @@
                         <span class="display-6 fw-bold text-cyan">{{ current_user.rttBalance.value|round(1) }}</span>
                         <span class="text-muted mb-1">jour(s)</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialRttBalance.value|round(1) }} j</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'RTT'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande de RTT
@@ -53,6 +55,7 @@
                         <span class="display-6 fw-bold text-orange">{{ current_user.heureSupBalance.value|round(2) }}</span>
                         <span class="text-muted mb-1">h</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialHeureSupBalance.value|round(2) }} h</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'HEURE_SUP'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande d'heures supplémentaires
@@ -151,6 +154,7 @@
                         <span class="display-6 fw-bold text-primary">{{ current_user.leaveBalance.value|round(2) }}</span>
                         <span class="text-muted mb-1">h</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialLeaveBalance.value|round(2) }} h</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'CONGE'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande de congé
@@ -167,6 +171,7 @@
                         <span class="display-6 fw-bold text-cyan">{{ current_user.rttBalance.value|round(1) }}</span>
                         <span class="text-muted mb-1">jour(s)</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialRttBalance.value|round(1) }} j</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'RTT'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande de RTT
@@ -183,6 +188,7 @@
                         <span class="display-6 fw-bold text-orange">{{ current_user.heureSupBalance.value|round(2) }}</span>
                         <span class="text-muted mb-1">h</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialHeureSupBalance.value|round(2) }} h</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'HEURE_SUP'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande d'heure supplémentaires
@@ -326,7 +332,7 @@
                         <span class="display-6 fw-bold text-primary">{{ current_user.leaveBalance.value|round(2) }}</span>
                         <span class="text-muted mb-1">h</span>
                     </div>
-                 
+                    <small class="text-muted">Initial : {{ current_user.initialLeaveBalance.value|round(2) }} h</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'CONGE'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande de congé
@@ -343,6 +349,7 @@
                         <span class="display-6 fw-bold text-cyan">{{ current_user.rttBalance.value|round(1) }}</span>
                         <span class="text-muted mb-1">jour(s)</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialRttBalance.value|round(1) }} j</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'RTT'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande de RTT
@@ -359,6 +366,7 @@
                         <span class="display-6 fw-bold text-orange">{{ current_user.heureSupBalance.value|round(2) }}</span>
                         <span class="text-muted mb-1">h</span>
                     </div>
+                    <small class="text-muted">Initial : {{ current_user.initialHeureSupBalance.value|round(2) }} h</small>
                     <div class="mt-2">
                         <a href="{{ path('app_leave_new', {type: 'HEURE_SUP'}) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-plus-circle me-1"></i>Nouvelle demande d'heures supplémentaires
@@ -417,8 +425,11 @@
                 </table>
             </div>
         {% endif %}
-        <div class="card-footer">
+        <div class="card-footer d-flex gap-2 flex-wrap">
             <a href="{{ path('app_leave_list', {type: 'ALL'}) }}" class="btn btn-sm btn-outline-primary">Voir toutes mes demandes</a>
+            <a href="{{ path('app_leave_pdf', {type: 'ALL'}) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-printer me-1"></i>Imprimer mes demandes
+            </a>
         </div>
     </div>
 {% endif %}

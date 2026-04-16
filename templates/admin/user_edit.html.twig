@@ -4,7 +4,7 @@
 
 {% block body %}
 <div class="d-flex align-items-center gap-2 mb-4">
-    <a href="{{ path('app_admin_users') }}" class="btn btn-sm btn-outline-secondary">
+    <a href="{{ path('app_agents_show', {id: user.id}) }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-arrow-left"></i>
     </a>
     <h1 class="h3 mb-0"><i class="bi bi-person-gear me-2"></i>Modifier l'utilisateur</h1>
@@ -36,6 +36,7 @@
                 <div class="form-text">Laisser vide pour ne pas modifier. 8 caractères minimum.</div>
             </div>
 
+            {% if is_admin %}
             <div class="mb-4">
                 <label class="form-label fw-semibold">Rôles</label>
                 {% if is_self %}
@@ -68,6 +69,7 @@
                 </div>
                 {% endif %}
             </div>
+            {% endif %}
 
             <hr>
             <h6 class="text-muted fw-semibold mb-3 text-uppercase" style="font-size:.75rem;letter-spacing:.05em">Profil</h6>
@@ -95,26 +97,26 @@
 
             <div class="row g-3 mb-4">
                 <div class="col-sm-4">
-                    <label for="leaveBalanceHours" class="form-label fw-semibold">Solde congés</label>
+                    <label for="leaveBalanceHours" class="form-label fw-semibold">Congés <small class="text-muted fw-normal">(initial)</small></label>
                     <div class="input-group">
                         <input type="number" id="leaveBalanceHours" name="leaveBalanceHours" class="form-control"
-                               value="{{ user.leaveBalance.value }}" min="0" step="0.25">
+                               value="{{ user.initialLeaveBalance.value }}" min="0" step="0.25">
                         <span class="input-group-text">h</span>
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <label for="rttBalanceHours" class="form-label fw-semibold">Solde RTT</label>
+                    <label for="rttBalanceHours" class="form-label fw-semibold">RTT <small class="text-muted fw-normal">(initial)</small></label>
                     <div class="input-group">
                         <input type="number" id="rttBalanceHours" name="rttBalanceHours" class="form-control"
-                               value="{{ user.rttBalance.value }}" min="0" step="0.25">
+                               value="{{ user.initialRttBalance.value }}" min="0" step="0.25">
                         <span class="input-group-text">j</span>
                     </div>
                 </div>
                 <div class="col-sm-4">
-                    <label for="heureSupBalanceHours" class="form-label fw-semibold">Solde heures sup.</label>
+                    <label for="heureSupBalanceHours" class="form-label fw-semibold">Heures sup. <small class="text-muted fw-normal">(initial)</small></label>
                     <div class="input-group">
                         <input type="number" id="heureSupBalanceHours" name="heureSupBalanceHours" class="form-control"
-                               value="{{ user.heureSupBalance.value }}" min="0" step="0.25">
+                               value="{{ user.initialHeureSupBalance.value }}" min="0" step="0.25">
                         <span class="input-group-text">h</span>
                     </div>
                 </div>
@@ -124,7 +126,7 @@
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-check-lg me-1"></i>Enregistrer
                 </button>
-                <a href="{{ path('app_admin_users') }}" class="btn btn-outline-secondary">Annuler</a>
+                <a href="{{ path('app_agents_show', {id: user.id}) }}" class="btn btn-outline-secondary">Annuler</a>
             </div>
         </form>
     </div>

@@ -140,8 +140,9 @@ final class LeaveWebController extends AbstractController
     public function pdf(Request $request): Response
     {
         $currentUser = $this->getUser();
-        $typeParam   = $request->query->get('type', 'CONGE');
-        $leaveType   = LeaveType::tryFrom(strtoupper($typeParam)) ?? LeaveType::CONGE;
+        $typeParam   = strtoupper($request->query->get('type', 'CONGE'));
+        $allTypes    = $typeParam === 'ALL';
+        $leaveType   = $allTypes ? null : (LeaveType::tryFrom($typeParam) ?? LeaveType::CONGE);
         $isRh        = $this->isGranted('ROLE_RH');
         $isChef      = $this->isGranted('ROLE_CHEF_SERVICE') && !$isRh;
         $targetId    = $request->query->get('userId');
@@ -182,7 +183,9 @@ final class LeaveWebController extends AbstractController
                 : [];
         }
 
-        $leaves = array_values(array_filter($leaves, fn($l) => $l->getType() === $leaveType));
+        if (!$allTypes) {
+            $leaves = array_values(array_filter($leaves, fn($l) => $l->getType() === $leaveType));
+        }
 
         $allUsers   = $this->em->getRepository(User::class)->findAll();
         $agentNames = [];
@@ -209,14 +212,15 @@ final class LeaveWebController extends AbstractController
         $dompdf->render();
 
         // Nom du fichier basé sur l'agent cible (ou le connecté)
-        $nameUser = $targetUser ?? ($currentUser instanceof User ? $currentUser : null);
-        $prenom   = $nameUser instanceof User ? ($nameUser->getPrenom() ?? '') : '';
-        $nom      = $nameUser instanceof User ? ($nameUser->getNom() ?? '') : '';
-        $namePart = trim($prenom . '_' . $nom);
-        $namePart = $namePart !== '_'
+        $nameUser  = $targetUser ?? ($currentUser instanceof User ? $currentUser : null);
+        $prenom    = $nameUser instanceof User ? ($nameUser->getPrenom() ?? '') : '';
+        $nom       = $nameUser instanceof User ? ($nameUser->getNom() ?? '') : '';
+        $namePart  = trim($prenom . '_' . $nom);
+        $namePart  = $namePart !== '_'
             ? preg_replace('/[^a-zA-Z0-9_\-]/', '', iconv('UTF-8', 'ASCII//TRANSLIT', $namePart))
             : 'agent';
-        $filename = sprintf('%s_%s_%s.pdf', strtolower($namePart), strtolower($leaveType->value), date('d-m-Y'));
+        $typePart  = $allTypes ? 'toutes' : strtolower($leaveType->value);
+        $filename  = sprintf('%s_%s_%s.pdf', strtolower($namePart), $typePart, date('d-m-Y'));
 
         return new Response(
             $dompdf->output(),

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Web\Controller;
 
+use App\Leave\Domain\Repository\LeaveRequestRepositoryInterface;
+use App\Leave\Domain\ValueObject\LeaveStatus;
+use App\Leave\Domain\ValueObject\LeaveType;
 use App\Security\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,16 +18,17 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 #[Route('/admin', name: 'app_admin_')]
-#[IsGranted('ROLE_ADMIN')]
 final class AdminController extends AbstractController
 {
     public function __construct(
-        private readonly EntityManagerInterface      $em,
-        private readonly UserPasswordHasherInterface $hasher,
+        private readonly EntityManagerInterface          $em,
+        private readonly UserPasswordHasherInterface     $hasher,
+        private readonly LeaveRequestRepositoryInterface $leaveRepository,
     ) {
     }
 
     #[Route('/users', name: 'users', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function users(): Response
     {
         $users = $this->em->getRepository(User::class)->findBy([], ['username' => 'ASC']);
@@ -33,6 +37,7 @@ final class AdminController extends AbstractController
     }
 
     #[Route('/users/new', name: 'users_new', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function createUser(Request $request): Response
     {
         if ($request->isMethod('POST')) {
@@ -84,6 +89,7 @@ final class AdminController extends AbstractController
     }
 
     #[Route('/users/{id}/edit', name: 'users_edit', methods: ['GET', 'POST'])]
+    #[IsGranted('ROLE_RH')]
     public function editUser(string $id, Request $request): Response
     {
         $user = $this->em->getRepository(User::class)->find($id);
@@ -92,7 +98,10 @@ final class AdminController extends AbstractController
             throw $this->createNotFoundException('Utilisateur introuvable.');
         }
 
-        $isSelf = $user->getUserIdentifier() === $this->getUser()?->getUserIdentifier();
+        $isSelf  = $user->getUserIdentifier() === $this->getUser()?->getUserIdentifier();
+        $isAdmin = $this->isGranted('ROLE_ADMIN');
+
+        $tplVars = ['user' => $user, 'is_self' => $isSelf, 'is_admin' => $isAdmin];
 
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('admin_user_edit_' . $id, $request->request->get('_token'))) {
@@ -106,25 +115,25 @@ final class AdminController extends AbstractController
 
             if ($username === '' || !preg_match('/^[a-zA-Z0-9._-]+$/', $username)) {
                 $this->addFlash('error', 'Nom d\'utilisateur invalide.');
-                return $this->render('admin/user_edit.html.twig', ['user' => $user, 'is_self' => $isSelf]);
+                return $this->render('admin/user_edit.html.twig', $tplVars);
             }
             $existing = $this->em->getRepository(User::class)->findOneBy(['username' => $username]);
             if ($existing && $existing->getId() !== $user->getId()) {
                 $this->addFlash('error', 'Ce nom d\'utilisateur est déjà utilisé.');
-                return $this->render('admin/user_edit.html.twig', ['user' => $user, 'is_self' => $isSelf]);
+                return $this->render('admin/user_edit.html.twig', $tplVars);
             }
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->addFlash('error', 'Adresse e-mail invalide.');
-                return $this->render('admin/user_edit.html.twig', ['user' => $user, 'is_self' => $isSelf]);
+                return $this->render('admin/user_edit.html.twig', $tplVars);
             }
             $existing = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
             if ($existing && $existing->getId() !== $user->getId()) {
                 $this->addFlash('error', 'Cette adresse e-mail est déjà utilisée.');
-                return $this->render('admin/user_edit.html.twig', ['user' => $user, 'is_self' => $isSelf]);
+                return $this->render('admin/user_edit.html.twig', $tplVars);
             }
             if ($password !== '' && strlen($password) < 8) {
                 $this->addFlash('error', 'Le mot de passe doit contenir au moins 8 caractères.');
-                return $this->render('admin/user_edit.html.twig', ['user' => $user, 'is_self' => $isSelf]);
+                return $this->render('admin/user_edit.html.twig', $tplVars);
             }
 
             $user->setUsername($username);
@@ -133,33 +142,48 @@ final class AdminController extends AbstractController
             if ($password !== '') {
                 $user->setPassword($this->hasher->hashPassword($user, $password));
             }
-            if (!$isSelf) {
+            if ($isAdmin && !$isSelf) {
                 $user->setRoles($this->resolveRoles($request->request->all('roles') ?: []));
             }
 
-            $nom     = trim((string) $request->request->get('nom', ''));
-            $prenom  = trim((string) $request->request->get('prenom', ''));
-            $balance = (float) $request->request->get('leaveBalanceHours', $user->getLeaveBalance()->getValue());
+            $nom    = trim((string) $request->request->get('nom', ''));
+            $prenom = trim((string) $request->request->get('prenom', ''));
 
             $user->setNom($nom !== '' ? $nom : null);
             $user->setPrenom($prenom !== '' ? $prenom : null);
-            $user->applyLeaveBalance(new \App\Shared\Domain\ValueObject\LeaveBalance($balance));
-            $user->applyRttBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(
-                (float) $request->request->get('rttBalanceHours', $user->getRttBalance()->getValue())
-            ));
-            $user->applyHeureSupBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(
-                (float) $request->request->get('heureSupBalanceHours', $user->getHeureSupBalance()->getValue())
-            ));
+
+            $congeInitial    = (float) $request->request->get('leaveBalanceHours', $user->getInitialLeaveBalance()->getValue());
+            $rttInitial      = (float) $request->request->get('rttBalanceHours', $user->getInitialRttBalance()->getValue());
+            $heureSupInitial = (float) $request->request->get('heureSupBalanceHours', $user->getInitialHeureSupBalance()->getValue());
+
+            $approvedLeaves  = $this->leaveRepository->findByUserIdAndStatus($user->getId(), LeaveStatus::APPROVED);
+            $usedConge       = 0.0;
+            $usedRtt         = 0.0;
+            $usedHeureSup    = 0.0;
+            foreach ($approvedLeaves as $leave) {
+                match ($leave->getType()) {
+                    LeaveType::RTT       => $usedRtt      += $leave->getHeures()->getValue(),
+                    LeaveType::HEURE_SUP => $usedHeureSup += $leave->getHeures()->getValue(),
+                    default              => $usedConge    += $leave->getHeures()->getValue(),
+                };
+            }
+
+            $user->applyInitialLeaveBalance(new \App\Shared\Domain\ValueObject\LeaveBalance($congeInitial));
+            $user->applyLeaveBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(max(0.0, $congeInitial - $usedConge)));
+            $user->applyInitialRttBalance(new \App\Shared\Domain\ValueObject\LeaveBalance($rttInitial));
+            $user->applyRttBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(max(0.0, $rttInitial - $usedRtt)));
+            $user->applyInitialHeureSupBalance(new \App\Shared\Domain\ValueObject\LeaveBalance($heureSupInitial));
+            $user->applyHeureSupBalance(new \App\Shared\Domain\ValueObject\LeaveBalance(max(0.0, $heureSupInitial - $usedHeureSup)));
 
             $user->setServiceNumbers($this->parseServiceNumbers((string) $request->request->get('serviceNumbers', '')));
 
             $this->em->flush();
 
             $this->addFlash('success', sprintf('Utilisateur "%s" mis à jour.', $user->getUsername()));
-            return $this->redirectToRoute('app_admin_users');
+            return $this->redirectToRoute('app_agents_show', ['id' => $user->getId()]);
         }
 
-        return $this->render('admin/user_edit.html.twig', ['user' => $user, 'is_self' => $isSelf]);
+        return $this->render('admin/user_edit.html.twig', $tplVars);
     }
 
     // -------------------------------------------------------------------------

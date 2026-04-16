@@ -31,9 +31,10 @@ security:
                 lifetime: 604800
 
     access_control:
-        - { path: ^/login,  roles: PUBLIC_ACCESS }
-        - { path: ^/admin,  roles: ROLE_ADMIN }
-        - { path: ^/,       roles: ROLE_AGENT }
+        - { path: ^/login,              roles: PUBLIC_ACCESS }
+        - { path: ^/admin/users/[^/]+/edit, roles: ROLE_RH }
+        - { path: ^/admin,              roles: ROLE_ADMIN }
+        - { path: ^/,                   roles: ROLE_AGENT }
 
     role_hierarchy:
         ROLE_CHEF_SERVICE: [ROLE_AGENT]

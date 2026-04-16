@@ -36,7 +36,7 @@
 <body>
 
 <div class="header">
-    <h1>{{ is_rh ? 'Toutes les demandes' : 'Mes demandes' }} — {{ leave_type.label() }}</h1>
+    <h1>{{ is_rh ? 'Toutes les demandes' : 'Mes demandes' }}{% if leave_type %} — {{ leave_type.label() }}{% endif %}</h1>
     <div class="meta">
         Édité le {{ "now"|date("d/m/Y à H:i") }}
         {% if current_user %} &nbsp;·&nbsp; {{ current_user.nomComplet ?? current_user.username }}{% endif %}
