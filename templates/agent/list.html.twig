@@ -53,7 +53,7 @@
                         '16': 'Population'
                     } %}
                     {% for user in users %}
-                    <tr class="clickable-row" data-href="{{ path('app_agents_show', {id: user.id}) }}" style="cursor:pointer">
+                    <tr class="clickable-row" data-href="{{ path('app_agents_show', {id: user.id}) }}" data-agent="{{ user.nom }} {{ user.prenom }}" style="cursor:pointer">
                         <td data-sort="{{ user.serviceNumbers|join(',') }}">
                             {% if user.serviceNumbers is not empty %}
                                 {% for sn in user.serviceNumbers %}
@@ -90,7 +90,8 @@
 function filterTable(input, tableId) {
     var q = input.value.toLowerCase();
     document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
-        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        var agent = (row.dataset.agent || '').toLowerCase();
+        row.style.display = agent.includes(q) ? '' : 'none';
     });
 }
 

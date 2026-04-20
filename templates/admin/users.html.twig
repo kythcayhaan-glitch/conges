@@ -46,7 +46,7 @@
                 } %}
                 {% for user in users %}
                 {% set is_self = user.username == app.user.userIdentifier %}
-                <tr class="{{ is_self ? 'table-secondary' : '' }}">
+                <tr class="{{ is_self ? 'table-secondary' : '' }}" data-agent="{{ user.prenom }} {{ user.nom }}">
                     <td>
                         {% if user.serviceNumbers is not empty %}
                             {% for sn in user.serviceNumbers %}
@@ -107,7 +107,8 @@
 function filterTable(input, tableId) {
     var q = input.value.toLowerCase();
     document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
-        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        var agent = (row.dataset.agent || '').toLowerCase();
+        row.style.display = agent.includes(q) ? '' : 'none';
     });
 }
 </script>

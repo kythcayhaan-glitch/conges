@@ -116,7 +116,7 @@
                 </thead>
                 <tbody>
                     {% for leave in leaves %}
-                    <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
+                    <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" data-agent="{{ agent_names[leave.userId] ?? '' }}" style="cursor:pointer">
                         {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
                         {% if all_types %}<td>{{ leave.type.label() }}</td>{% endif %}
                         <td class="text-nowrap">
@@ -212,7 +212,8 @@ document.getElementById('printConfirmBtn').addEventListener('click', function ()
 function filterTable(input, tableId) {
     var q = input.value.toLowerCase();
     document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
-        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        var agent = (row.dataset.agent || '').toLowerCase();
+        row.style.display = agent.includes(q) ? '' : 'none';
     });
 }
 

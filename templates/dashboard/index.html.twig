@@ -87,7 +87,7 @@
                     </thead>
                     <tbody>
                         {% for leave in pending_leaves %}
-                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
+                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" data-agent="{{ agent_names[leave.userId] ?? '' }}" style="cursor:pointer">
                             <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
                             <td>{{ leave.type.label() }}</td>
                             <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
@@ -226,7 +226,7 @@
                     </thead>
                     <tbody>
                         {% for leave in pending_leaves %}
-                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
+                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" data-agent="{{ agent_names[leave.userId] ?? '' }}" style="cursor:pointer">
                             <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
                             <td>{{ leave.type.label() }}</td>
                             <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
@@ -262,7 +262,7 @@
                 </thead>
                 <tbody>
                     {% for leave in validated_chef_leaves %}
-                    <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
+                    <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" data-agent="{{ agent_names[leave.userId] ?? '' }}" style="cursor:pointer">
                         <td>{{ agent_names[leave.userId] ?? leave.userId }}</td>
                         <td>{{ leave.type.label() }}</td>
                         <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
@@ -400,7 +400,7 @@
                     </thead>
                     <tbody>
                         {% for leave in my_leaves %}
-                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" style="cursor:pointer">
+                        <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" data-agent="{{ app.user.prenom }} {{ app.user.nom }}" style="cursor:pointer">
                             <td>{{ leave.type.label() }}</td>
                             <td>{{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}</td>
                             <td>
@@ -440,7 +440,8 @@
 function filterTable(input, tableId) {
     var q = input.value.toLowerCase();
     document.querySelectorAll('#' + tableId + ' tbody tr').forEach(function(row) {
-        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        var agent = (row.dataset.agent || '').toLowerCase();
+        row.style.display = agent.includes(q) ? '' : 'none';
     });
 }
 
