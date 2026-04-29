@@ -70,7 +70,7 @@ final class LeaveRequestVoter extends Voter
         if ($this->isOwner($leave, $user)) {
             return true;
         }
-        if ($isChef && $this->isSameService($leave, $user)) {
+        if ($this->isSameService($leave, $user)) {
             return true;
         }
         return false;
@@ -139,28 +139,36 @@ final class LeaveRequestVoter extends Voter
         return $user instanceof User && $leave->getUserId() === $user->getId();
     }
 
-    private function isSameService(LeaveRequest $leave, UserInterface $chef): bool
+    private function isSameService(LeaveRequest $leave, UserInterface $viewer): bool
     {
-        if (!$chef instanceof User) {
-            return false;
-        }
-
-        $chefServices = $chef->getServiceNumbers();
-        if (empty($chefServices)) {
+        if (!$viewer instanceof User || empty($viewer->getServiceNumbers())) {
             return false;
         }
 
         $agent = $this->em->getRepository(User::class)->find($leave->getUserId());
-
-        if (!$agent instanceof User) {
+        if (!$agent instanceof User || empty($agent->getServiceNumbers())) {
             return false;
         }
 
-        $agentServices = $agent->getServiceNumbers();
-        if (empty($agentServices)) {
-            return false;
+        // Même service direct
+        if (count(array_intersect($viewer->getServiceNumbers(), $agent->getServiceNumbers())) > 0) {
+            return true;
         }
 
-        return count(array_intersect($chefServices, $agentServices)) > 0;
+        // Via chef : un chef gère à la fois le service du viewer et celui de l'agent
+        $allUsers = $this->em->getRepository(User::class)->findAll();
+        foreach ($allUsers as $u) {
+            if (!$u instanceof User || !in_array('ROLE_CHEF_SERVICE', $u->getRoles(), true)) {
+                continue;
+            }
+            $chefServices = $u->getServiceNumbers();
+            if (count(array_intersect($viewer->getServiceNumbers(), $chefServices)) > 0
+                && count(array_intersect($agent->getServiceNumbers(), $chefServices)) > 0
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

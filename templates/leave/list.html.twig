@@ -14,6 +14,8 @@
             Mes demandes — Tous types
         {% elseif is_granted('ROLE_RH') %}
             Toutes les demandes — {{ leave_type.label() }}
+        {% elseif is_service_agent is defined and is_service_agent %}
+            Mon service — {{ leave_type.label() }}
         {% else %}
             Mes demandes — {{ leave_type.label() }}
         {% endif %}
@@ -106,7 +108,7 @@
             <table class="table table-hover mb-0" id="leaveTable">
                 <thead class="table-light">
                     <tr>
-                        {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<th>Agent</th>{% endif %}
+                        {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) or (is_service_agent is defined and is_service_agent) %}<th>Agent</th>{% endif %}
                         {% if all_types %}<th>Type</th>{% endif %}
                         <th>Période</th>
                         <th>Motif</th>
@@ -117,7 +119,7 @@
                 <tbody>
                     {% for leave in leaves %}
                     <tr class="clickable-row" data-href="{{ path('app_leave_show', {id: leave.id}) }}" data-agent="{{ agent_names[leave.userId] ?? '' }}" style="cursor:pointer">
-                        {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
+                        {% if is_granted('ROLE_RH') or (is_chef is defined and is_chef) or (is_service_agent is defined and is_service_agent) %}<td>{{ agent_names[leave.userId] ?? leave.userId }}</td>{% endif %}
                         {% if all_types %}<td>{{ leave.type.label() }}</td>{% endif %}
                         <td class="text-nowrap">
                             {{ leave.dateDebutFormatted|date('d/m/Y') }} → {{ leave.dateFinFormatted|date('d/m/Y') }}

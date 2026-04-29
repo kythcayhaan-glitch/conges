@@ -77,6 +77,15 @@ final class LeaveWebController extends AbstractController
             } else {
                 $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
             }
+        } elseif ($user instanceof User && !empty($user->getServiceNumbers())) {
+            $allUsers     = $this->em->getRepository(User::class)->findAll();
+            $groupServices = $this->expandServiceGroup($user->getServiceNumbers(), $allUsers);
+            $serviceUserIds = array_map(
+                fn(User $u) => $u->getId(),
+                array_filter($allUsers, fn(User $u) => count(array_intersect($u->getServiceNumbers(), $groupServices)) > 0)
+            );
+            $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
+            $isServiceAgent = true;
         } else {
             $leaves = $user instanceof User
                 ? $this->leaveRepository->findByUserId($user->getId())
@@ -124,14 +133,15 @@ final class LeaveWebController extends AbstractController
         }
 
         return $this->render('leave/list.html.twig', [
-            'leaves'       => $leaves,
-            'agent_names'  => $agentNames,
-            'last_logs'    => $lastLogs,
-            'user_emails'  => $userEmails,
-            'leave_type'   => $leaveType,
-            'is_chef'      => $isChef,
-            'current_user' => $user instanceof User ? $user : null,
-            'print_users'  => $printUsers,
+            'leaves'            => $leaves,
+            'agent_names'       => $agentNames,
+            'last_logs'         => $lastLogs,
+            'user_emails'       => $userEmails,
+            'leave_type'        => $leaveType,
+            'is_chef'           => $isChef,
+            'is_service_agent'  => $isServiceAgent ?? false,
+            'current_user'      => $user instanceof User ? $user : null,
+            'print_users'       => $printUsers,
         ]);
     }
 
@@ -611,6 +621,21 @@ final class LeaveWebController extends AbstractController
         return $this->redirectToRoute('app_leave_list');
     }
 
+    /** @param string[] $userServices @param User[] $allUsers @return string[] */
+    private function expandServiceGroup(array $userServices, array $allUsers): array
+    {
+        $group = $userServices;
+        foreach ($allUsers as $u) {
+            if (!in_array('ROLE_CHEF_SERVICE', $u->getRoles(), true)) {
+                continue;
+            }
+            if (count(array_intersect($u->getServiceNumbers(), $userServices)) > 0) {
+                $group = array_unique(array_merge($group, $u->getServiceNumbers()));
+            }
+        }
+        return $group;
+    }
+
     #[Route('/calendar', name: 'calendar', methods: ['GET'])]
     #[IsGranted('ROLE_AGENT')]
     public function calendar(): Response
@@ -630,6 +655,15 @@ final class LeaveWebController extends AbstractController
                 array_filter($allUsers, fn(User $u) => count(array_intersect($u->getServiceNumbers(), $chefServices)) > 0)
             );
             $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
+        } elseif ($user instanceof User && !empty($user->getServiceNumbers())) {
+            $allUsers       = $this->em->getRepository(User::class)->findAll();
+            $groupServices  = $this->expandServiceGroup($user->getServiceNumbers(), $allUsers);
+            $serviceUserIds = array_map(
+                fn(User $u) => $u->getId(),
+                array_filter($allUsers, fn(User $u) => count(array_intersect($u->getServiceNumbers(), $groupServices)) > 0)
+            );
+            $leaves = $this->leaveRepository->findByUserIds($serviceUserIds);
+            $isServiceAgent = true;
         } else {
             $leaves = $user instanceof User ? $this->leaveRepository->findByUserId($user->getId()) : [];
         }
@@ -659,7 +693,7 @@ final class LeaveWebController extends AbstractController
                 default          => ['#e53935',   '#b71c1c'],    // rouge (PENDING)
             };
             $endDate = (new \DateTimeImmutable($leave->getDateFinFormatted()))->modify('+1 day')->format('Y-m-d');
-            $prefix  = ($isRh || $isChef) ? ($agentNames[$leave->getUserId()] ?? '?') . ' — ' : '';
+            $prefix  = ($isRh || $isChef || ($isServiceAgent ?? false)) ? ($agentNames[$leave->getUserId()] ?? '?') . ' — ' : '';
 
             $events[] = [
                 'title'           => $prefix . $leave->getType()->label(),
